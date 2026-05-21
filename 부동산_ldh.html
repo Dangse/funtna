@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>부동산 회계 부루마불 V2.7</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f0f4f8; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        #app { width: 1100px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1, h2, h3 { color: #2c3e50; text-align: center; margin-top: 0; }
+        
+        /* 캐릭터 선택 */
+        #selection-screen { display: block; }
+        .character-container { display: flex; justify-content: space-around; margin-top: 20px; }
+        .character-card { border: 2px solid #bdc3c7; border-radius: 8px; padding: 20px; width: 30%; cursor: pointer; text-align: center; transition: 0.3s; }
+        .character-card:hover, .character-card.selected { border-color: #3498db; background-color: #ebf5fb; }
+        
+        .start-btn { display: block; margin: 30px auto; padding: 15px 30px; font-size: 18px; background-color: #e67e22; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .start-btn:disabled { background-color: #95a5a6; cursor: not-allowed; }
+
+        /* 게임 화면 */
+        #game-screen { display: none; }
+        .header-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #ecf0f1; }
+        .game-layout { display: flex; gap: 20px; }
+        
+        /* 4x4 보드판 */
+        .board { display: grid; grid-template-columns: repeat(4, 130px); grid-template-rows: repeat(4, 130px); gap: 5px; background-color: #34495e; padding: 5px; border-radius: 10px; }
+        .cell { background: #ecf0f1; border-radius: 5px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; font-size: 13px; font-weight: bold; position: relative; padding-top: 10px; text-align: center;}
+        .cell.empty { background: transparent; }
+        .owner-tag { font-size: 11px; color: #fff; padding: 2px 5px; border-radius: 3px; margin-top: 5px; display: none; }
+        .owner-p1 { background: #e74c3c; display: inline-block; }
+        .owner-p2 { background: #3498db; display: inline-block; }
+
+        /* 보드 위치 */
+        .cell[data-pos="0"] { grid-column: 1; grid-row: 1; background: #f1c40f; } 
+        .cell[data-pos="1"] { grid-column: 2; grid-row: 1; } 
+        .cell[data-pos="2"] { grid-column: 3; grid-row: 1; background: #e74c3c; color: white;} 
+        .cell[data-pos="3"] { grid-column: 4; grid-row: 1; } 
+        .cell[data-pos="4"] { grid-column: 4; grid-row: 2; background: #9b59b6; color: white;} 
+        .cell[data-pos="5"] { grid-column: 4; grid-row: 3; } 
+        .cell[data-pos="6"] { grid-column: 4; grid-row: 4; background: #e84393; color: white;} 
+        .cell[data-pos="7"] { grid-column: 3; grid-row: 4; } 
+        .cell[data-pos="8"] { grid-column: 2; grid-row: 4; background: #9b59b6; color: white;} 
+        .cell[data-pos="9"] { grid-column: 1; grid-row: 4; } 
+        .cell[data-pos="10"]{ grid-column: 1; grid-row: 3; } 
+        .cell[data-pos="11"]{ grid-column: 1; grid-row: 2; background: #e74c3c; color: white; } 
+        
+        /* 토큰 겹침 방지 */
+        .player-token { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fff; }
+        #token-0 { background-color: #e74c3c; }
+        #token-1 { background-color: #3498db; }
+
+        /* UI 패널 */
+        .ui-panel { flex-grow: 1; display: flex; flex-direction: column; gap: 10px; }
+        .status-box { background: #ecf0f1; padding: 15px; border-radius: 8px; font-size: 14px; position: relative;}
+        
+        .log-box { background: #fff; border: 1px solid #ccc; flex-grow: 1; height: 160px; max-height: 160px; overflow-y: auto; padding: 10px; font-size: 13px; line-height: 1.5; }
+        
+        .btn-group { margin-top: 10px; }
+        button { padding: 8px 12px; cursor: pointer; border: none; border-radius: 5px; background: #34495e; color: white; font-weight: bold; }
+        button:hover { background: #2c3e50; }
+        .action-btn { background: #e67e22; padding: 15px; font-size: 16px; width: 100%; }
+        .action-btn:hover { background: #d35400; }
+        .action-btn:disabled { background: #95a5a6; cursor: not-allowed; }
+
+        /* 모달 공통 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(53, 53, 53, 0.8); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 550px; max-height: 90vh; overflow-y: auto; }
+        
+        /* 분개창 */
+        .journal-row { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center;}
+        .journal-row select, .journal-row input { padding: 8px; width: 45%; box-sizing: border-box; }
+        .hint-text { color: #e74c3c; font-size: 13px; display: none; margin-top: 10px; font-weight: bold; }
+        
+        #settlement-modal { justify-content: flex-start; padding-left: 50px; background: rgba(0,0,0,0.6); }
+        .settlement-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .settlement-box { border: 1px solid #bdc3c7; padding: 15px; border-radius: 5px; }
+        .settlement-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        .settlement-row input { width: 120px; text-align: right; padding: 4px; }
+        
+        .ledger-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px;}
+        .ledger-table th, .ledger-table td { border: 1px solid #bdc3c7; padding: 5px; text-align: right; }
+        .ledger-table th { background: #ecf0f1; text-align: center; }
+        .ledger-table td:first-child { text-align: center; }
+
+        #info-modal { z-index: 200; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="selection-screen">
+        <h1>부동산 회계 부루마불</h1>
+        <h2>플레이어 1, 캐릭터를 선택하세요</h2>
+        <div class="character-container">
+            <div class="character-card" onclick="selectCharacter('레버리지형')">
+                <h3>레버리지형 (인생은 한방)</h3>
+                <p>통행료 20% 추가<br>대출 금리 8% (한도 80%)</p>
+            </div>
+            <div class="character-card" onclick="selectCharacter('안정추구형')">
+                <h3>안정추구형 (안정중독)</h3>
+                <p>초기자본 30% 펀드 투자<br>대출 금리 5% (한도 30%)</p>
+            </div>
+            <div class="character-card" onclick="selectCharacter('가치투자형')">
+                <h3>가치투자형 (호재를 믿자)</h3>
+                <p>부동산 가격 1년 후 5% 상승(1회)<br>대출 금리 5% (한도 60%)</p>
+            </div>
+        </div>
+        <button id="btn-start" class="start-btn" disabled onclick="startGame()">게임 시작하기</button>
+    </div>
+
+    <div id="game-screen">
+        <div class="header-info">
+            <h2>제 <span id="ui-year">1</span> 회계연도 | 턴: <span id="ui-turn">1</span>/4</h2>
+            <h2 style="color: #e67e22;">현재 턴: 플레이어 <span id="current-player-turn">1</span></h2>
+        </div>
+        
+        <div class="game-layout">
+            <div class="board" id="board"></div>
+
+            <div class="ui-panel">
+                <div class="status-box" id="p1-box" style="border: 3px solid #e74c3c;">
+                    <h3 style="margin: 0 0 10px 0; color: #e74c3c;">플레이어 1 (<span id="p1-char"></span>)</h3>
+                    <div><strong>자산:</strong> <span id="p1-asset">100,000,000</span>원</div>
+                    <div><strong>부채:</strong> <span id="p1-debt">0</span>원</div>
+                    <div><strong>자본:</strong> <span id="p1-equity">100,000,000</span>원</div>
+                    <div class="btn-group">
+                        <button onclick="showLedger(0)">분개장</button>
+                        <button onclick="showTrialBalance(0)">합계잔액시산표</button>
+                    </div>
+                </div>
+                
+                <div class="status-box" id="p2-box" style="border: 3px solid transparent;">
+                    <h3 style="margin: 0 0 10px 0; color: #3498db;">플레이어 2 (<span id="p2-char"></span>)</h3>
+                    <div><strong>자산:</strong> <span id="p2-asset">100,000,000</span>원</div>
+                    <div><strong>부채:</strong> <span id="p2-debt">0</span>원</div>
+                    <div><strong>자본:</strong> <span id="p2-equity">100,000,000</span>원</div>
+                    <div class="btn-group">
+                        <button onclick="showLedger(1)">분개장</button>
+                        <button onclick="showTrialBalance(1)">합계잔액시산표</button>
+                    </div>
+                </div>
+                
+                <button id="btn-dice" class="action-btn" onclick="rollDice()">주사위 굴리기</button>
+                
+                <div class="log-box" id="game-log"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="prop-select-modal">
+    <div class="modal-content" style="width: 450px; text-align: center;">
+        <h2 style="margin-top: 0;">부동산 매수 선택</h2>
+        <p>현재 칸에서 매수할 부동산을 선택하세요.</p>
+        <div style="display: flex; justify-content: space-around; margin-top: 20px; gap: 10px;">
+            <button class="action-btn" style="font-size:14px; padding: 10px;" onclick="selectProperty('주택', 20000000, 6000000)">주택<br>(2,000만)</button>
+            <button class="action-btn" style="font-size:14px; padding: 10px; background: #3498db;" onclick="selectProperty('아파트', 50000000, 15000000)">아파트<br>(5,000만)</button>
+            <button class="action-btn" style="font-size:14px; padding: 10px; background: #9b59b6;" onclick="selectProperty('건물', 100000000, 30000000)">건물<br>(1억)</button>
+        </div>
+        <button style="margin-top: 20px; background: #7f8c8d; width: 100%; padding: 12px;" onclick="cancelPropertySelection()">매수 취소 (턴 종료)</button>
+    </div>
+</div>
+
+<div class="modal" id="journal-modal">
+    <div class="modal-content">
+        <h2 id="journal-title" style="margin-top: 0;">분개장 입력</h2>
+        <p id="journal-desc" style="white-space: pre-wrap; font-weight: bold; color: #2980b9;"></p>
+        
+        <div class="journal-row" style="font-weight: bold; background: #ecf0f1; padding: 10px; border-radius: 5px;">
+            <span>차변 (자산+, 비용+)</span>
+            <span>대변 (자산-, 부채+, 수익+)</span>
+        </div>
+        <div class="journal-row">
+            <select id="debit-account"></select>
+            <select id="credit-account"></select>
+        </div>
+        <div class="journal-row">
+            <input type="text" id="debit-amount" placeholder="금액">
+            <input type="text" id="credit-amount" placeholder="금액">
+        </div>
+        
+        <button class="action-btn" onclick="submitJournal()">분개 완료</button>
+        
+        <div id="journal-prop-actions" style="display: none; justify-content: space-between; margin-top: 10px;">
+            <button style="background: #e74c3c; width: 48%; padding: 10px;" onclick="backToPropSelect()">부동산 변경</button>
+            <button style="background: #7f8c8d; width: 48%; padding: 10px;" onclick="cancelJournalProp()">매수 취소</button>
+        </div>
+
+        <p id="journal-hint" class="hint-text"></p>
+    </div>
+</div>
+
+<div class="modal" id="settlement-modal">
+    <div class="modal-content" style="width: 580px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <h2 style="margin-top: 0;">제 <span id="settle-year"></span>기 연말결산 - <span id="settle-player" style="color: #e67e22;"></span></h2>
+            <div>
+                <button style="font-size: 11px; padding: 5px;" onclick="showLedger(settlingPlayer)">내 분개장</button>
+                <button style="font-size: 11px; padding: 5px;" onclick="showTrialBalance(settlingPlayer)">내 시산표</button>
+            </div>
+        </div>
+        
+        <p>당기의 재무상태표와 손익계산서를 작성하여 결산을 마감하세요.<br>(작성 전 우측 상단의 버튼으로 장부를 확인하세요. 우측의 실시간 상태창도 참고 가능합니다.)</p>
+        
+        <div class="settlement-grid">
+            <div class="settlement-box">
+                <h3 style="text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 5px;">재무상태표 (기말)</h3>
+                <div class="settlement-row"><span>총 자산:</span> <input type="text" id="fs-asset" class="fs-input"></div>
+                <div class="settlement-row"><span>총 부채:</span> <input type="text" id="fs-debt" class="fs-input"></div>
+                <div class="settlement-row"><span>기말 자본:</span> <input type="text" id="fs-equity" class="fs-input"></div>
+            </div>
+            <div class="settlement-box">
+                <h3 style="text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 5px;">손익계산서 (당기)</h3>
+                <div class="settlement-row"><span>총 수익:</span> <input type="text" id="fs-revenue" class="fs-input"></div>
+                <div class="settlement-row"><span>총 비용:</span> <input type="text" id="fs-expense" class="fs-input"></div>
+                <div class="settlement-row"><span>당기순이익:</span> <input type="text" id="fs-netincome" class="fs-input"></div>
+            </div>
+        </div>
+        <button class="action-btn" style="margin-top: 20px; background: #27ae60;" onclick="submitSettlement()">결산 마감</button>
+        <p id="settle-hint" class="hint-text"></p>
+    </div>
+</div>
+
+<div class="modal" id="info-modal">
+    <div class="modal-content" style="width: 600px;">
+        <h2 id="info-title" style="margin-top: 0;"></h2>
+        <div id="info-content" style="max-height: 400px; overflow-y: auto;"></div>
+        <button class="action-btn" style="margin-top: 15px;" onclick="document.getElementById('info-modal').style.display='none'">닫기</button>
+    </div>
+</div>
+
+<script>
+    const INIT_MONEY = 100000000;
+    const SALARY = 20000000;
+    
+    const ACCOUNTS = [
+        "현금", "주택", "아파트", "건물", "리츠", "부채", "자본금", 
+        "지급임차료", "이자비용", "수선비", "세금과공과", "자산처분손실",
+        "임대료(영업외)", "임대수익", "영업외수익"
+    ];
+
+    let players = [
+        { id: 1, char: '', pos: 0, turns: 0, balances: {}, journals: [], prisonTurns: 0, propBanTurns: 0, isBannedThisTurn: false, loanYear: 0, skipRent: false, skipInterest: false },
+        { id: 2, char: '', pos: 0, turns: 0, balances: {}, journals: [], prisonTurns: 0, propBanTurns: 0, isBannedThisTurn: false, loanYear: 0, skipRent: false, skipInterest: false }
+    ];
+
+    let currentPlayer = 0;
+    let currentYear = 1;
+    let lastEventId = ""; // 1. 연속 이벤트 방지를 위한 기록 변수 추가
+
+    const boardTiles = [
+        { pos: 0, name: "출발", type: "START" },
+        { pos: 1, name: "부동산", type: "PROP", owner: null, propName: null, price: 0, toll: 0, buyYear: 0, valueIncreased: false },
+        { pos: 2, name: "이벤트", type: "EVENT" },
+        { pos: 3, name: "부동산", type: "PROP", owner: null, propName: null, price: 0, toll: 0, buyYear: 0, valueIncreased: false },
+        { pos: 4, name: "은행", type: "BANK" },
+        { pos: 5, name: "부동산", type: "PROP", owner: null, propName: null, price: 0, toll: 0, buyYear: 0, valueIncreased: false },
+        { pos: 6, name: "유동성감옥", type: "PRISON" },
+        { pos: 7, name: "부동산", type: "PROP", owner: null, propName: null, price: 0, toll: 0, buyYear: 0, valueIncreased: false },
+        { pos: 8, name: "은행", type: "BANK" },
+        { pos: 9, name: "부동산", type: "PROP", owner: null, propName: null, price: 0, toll: 0, buyYear: 0, valueIncreased: false },
+        { pos: 10, name: "부동산", type: "PROP", owner: null, propName: null, price: 0, toll: 0, buyYear: 0, valueIncreased: false },
+        { pos: 11, name: "이벤트", type: "EVENT" }
+    ];
+
+    function formatNum(num) { return num.toLocaleString('ko-KR'); }
+    
+    function parseNum(str) { 
+        if (!str) return 0;
+        let s = str.toString().replace(/,/g, '');
+        if (s === '-' || s === '') return 0;
+        return parseInt(s, 10) || 0; 
+    }
+    
+    function logMsg(msg) {
+        const box = document.getElementById('game-log');
+        box.innerHTML = `<div style="margin-bottom: 5px;">${msg}</div>` + box.innerHTML;
+        box.scrollTop = 0; 
+    }
+
+    function getAccountType(acc) {
+        if(["현금","주택","아파트","건물","리츠"].includes(acc)) return 'ASSET';
+        if(["부채"].includes(acc)) return 'LIABILITY';
+        if(["자본금"].includes(acc)) return 'EQUITY';
+        if(["임대료(영업외)","임대수익","영업외수익"].includes(acc)) return 'REVENUE';
+        return 'EXPENSE'; 
+    }
+
+    function selectCharacter(charName) {
+        let pNum = players[0].char ? 2 : 1;
+        alert(`플레이어 ${pNum} '${charName}' 캐릭터를 선택했습니다.`);
+
+        if (!players[0].char) {
+            players[0].char = charName;
+            document.querySelector('h2').innerText = '플레이어 2, 캐릭터를 선택하세요';
+        } else if (!players[1].char && players[0].char !== charName) {
+            players[1].char = charName;
+            document.getElementById('btn-start').disabled = false;
+            document.querySelector('h2').innerText = '게임 시작 준비 완료!';
+        } else {
+            alert('중복된 캐릭터는 선택할 수 없습니다.');
+        }
+    }
+
+    function startGame() {
+        document.getElementById('selection-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'block';
+        
+        ACCOUNTS.forEach(acc => {
+            players[0].balances[acc] = 0;
+            players[1].balances[acc] = 0;
+        });
+
+        players.forEach((p, idx) => {
+            document.getElementById(`p${idx+1}-char`).innerText = p.char;
+            
+            if(p.char === '안정추구형') {
+                recordJournal(idx, "현금", "자본금", INIT_MONEY, INIT_MONEY, "초기 자본금 출자", true);
+                recordJournal(idx, "리츠", "현금", INIT_MONEY * 0.3, INIT_MONEY * 0.3, "부동산 펀드(리츠) 투자", true);
+            } else {
+                recordJournal(idx, "현금", "자본금", INIT_MONEY, INIT_MONEY, "초기 자본금 출자", true);
+            }
+            updateStatusUI(idx);
+        });
+
+        const dSel = document.getElementById('debit-account');
+        const cSel = document.getElementById('credit-account');
+        ACCOUNTS.forEach(acc => {
+            dSel.options.add(new Option(acc, acc));
+            cSel.options.add(new Option(acc, acc));
+        });
+
+        drawBoard();
+        updateTokens();
+        logMsg(`<b>[게임 시작]</b> 4턴마다 연말결산이 진행됩니다.`);
+    }
+
+    function drawBoard() {
+        const board = document.getElementById('board');
+        const layout = [ 0, 1, 2, 3, 11,-1,-1, 4, 10,-1,-1, 5, 9, 8, 7, 6 ];
+        layout.forEach(pos => {
+            const div = document.createElement('div');
+            div.className = 'cell';
+            if (pos === -1) {
+                div.classList.add('empty');
+            } else {
+                div.setAttribute('data-pos', pos);
+                div.innerHTML = `<div class="cell-title">${boardTiles[pos].name}</div>
+                                 <div id="owner-tag-${pos}" class="owner-tag"></div>
+                                 <div id="token-box-${pos}" style="width:100%; height:25px; position:absolute; bottom:5px; display:flex; justify-content:space-evenly; align-items:center;"></div>`;
+            }
+            board.appendChild(div);
+        });
+    }
+
+    function updateTokens() {
+        document.querySelectorAll('.player-token').forEach(e => e.remove());
+        players.forEach((p, idx) => {
+            const box = document.getElementById(`token-box-${p.pos}`);
+            if(box) {
+                const tk = document.createElement('div');
+                tk.className = 'player-token';
+                tk.id = `token-${idx}`;
+                box.appendChild(tk);
+            }
+        });
+    }
+
+    let currentPropTile = null;
+
+    function rollDice() {
+        const btn = document.getElementById('btn-dice');
+        btn.disabled = true;
+
+        const p = players[currentPlayer];
+
+        if (p.prisonTurns > 0) {
+            p.prisonTurns--;
+            logMsg(`[P${p.id}] 유동성 감옥 수감 중... (남은 턴: ${p.prisonTurns})`);
+            
+            if (p.prisonTurns === 0) {
+                p.propBanTurns = 1; 
+                logMsg(`[P${p.id}] 감옥에서 탈출! (주의: 다음 1턴간 부동산 매수 불가)`);
+            }
+            endTurn();
+            return;
+        }
+
+        if (p.propBanTurns > 0) {
+            p.propBanTurns--;
+            p.isBannedThisTurn = true;
+        } else {
+            p.isBannedThisTurn = false;
+        }
+
+        const diceOptions = [1, 2, 3];
+        const dice = diceOptions[Math.floor(Math.random() * diceOptions.length)];
+        
+        const oldPos = p.pos;
+        p.pos = (p.pos + dice) % 12;
+        
+        logMsg(`[P${p.id}] 주사위 <b>${dice}</b>!`);
+        updateTokens();
+
+        if (oldPos > p.pos || p.pos === 0) {
+            triggerJournal('임대료 수령', '출발칸을 지나 임대료(영업외) 2,000만원을 받습니다.', 
+                           '현금', '임대료(영업외)', SALARY, () => handleTileEvent(p));
+            return;
+        }
+
+        handleTileEvent(p);
+    }
+
+    function handleTileEvent(p) {
+        const tile = boardTiles[p.pos];
+        logMsg(`[P${p.id}] <b>${tile.name}</b> 칸에 도착.`);
+
+        if (tile.type === 'PROP') {
+            if (tile.owner === null) {
+                if (p.isBannedThisTurn) {
+                    alert("유동성 감옥의 효과로 인해 부동산을 매수할 수 없습니다.");
+                    logMsg(`[P${p.id}] 부동산 매수 금지 상태로 통과.`);
+                    endTurn();
+                } else {
+                    currentPropTile = tile;
+                    document.getElementById('prop-select-modal').style.display = 'flex';
+                }
+            } else if (tile.owner !== currentPlayer) {
+                if (players[tile.owner].skipRent) {
+                    alert(`스태그플레이션 효과로 P${tile.owner+1}의 임대수익이 1회 정지되었습니다!\n통행료를 지불하지 않고 통과합니다.`);
+                    players[tile.owner].skipRent = false; 
+                    logMsg(`[P${p.id}] 스태그플레이션으로 통행료 면제됨.`);
+                    endTurn();
+                } else {
+                    let toll = tile.toll;
+                    if(players[tile.owner].char === '레버리지형') toll *= 1.2; 
+
+                    alert(`P${tile.owner+1}의 소유지(${tile.propName})입니다! 통행료 ${formatNum(toll)}원을 지불해야 합니다.`);
+                    
+                    triggerJournal(`통행료 지불`, `[지불할 통행료: ${formatNum(toll)}원]\n차변에 비용, 대변에 지불수단을 기입하세요.`,
+                                   '지급임차료', '현금', toll, () => {
+                        recordJournal(tile.owner, "현금", "임대수익", toll, toll, `통행료 수익 (${tile.propName})`);
+                        updateStatusUI(tile.owner);
+                        logMsg(`[P${p.id}] 통행료 지불 완료.`);
+                        endTurn();
+                    });
+                }
+            } else {
+                endTurn(); 
+            }
+        } else if (tile.type === 'BANK') {
+            if (p.balances["부채"] > 0) {
+                alert(`이미 대출이 존재합니다! (현재 부채: ${formatNum(p.balances["부채"])}원)\n기존 대출이 모두 자동 상환되기 전까지 추가 대출은 불가능합니다.`);
+                logMsg(`[P${p.id}] 기존 대출이 있어 대출 거절됨.`);
+                endTurn();
+            } else {
+                let limitRate = 0;
+                let intRate = 0;
+                if (p.char === '레버리지형') { limitRate = 0.8; intRate = 0.08; }
+                else if (p.char === '안정추구형') { limitRate = 0.3; intRate = 0.05; }
+                else if (p.char === '가치투자형') { limitRate = 0.6; intRate = 0.05; }
+
+                let totAsset = p.balances["현금"] + p.balances["주택"] + p.balances["아파트"] + p.balances["건물"] + p.balances["리츠"];
+                let availableLoan = Math.floor(totAsset * limitRate);
+
+                if (availableLoan <= 0) {
+                    alert(`대출 가능한 한도가 없습니다.`);
+                    endTurn();
+                } else {
+                    let loanStr = prompt(`[은행 도착] \n대출 가능 금액: ${formatNum(availableLoan)}원 (금리 ${intRate*100}%)\n얼마를 대출받으시겠습니까? (숫자만 입력, 원치않으면 0 입력)`, "0");
+                    let loanAmt = parseNum(loanStr || "0");
+
+                    if (loanAmt > 0 && loanAmt <= availableLoan) {
+                        triggerJournal(`은행 대출`, `차변에 대출금 수령(자산+), 대변에 대출 원금(부채+)을 기입하세요.`, '현금', '부채', loanAmt, () => {
+                            p.loanYear = currentYear; 
+                            logMsg(`[P${p.id}] 은행 대출 ${formatNum(loanAmt)}원 완료.`);
+                            endTurn();
+                        });
+                    } else if (loanAmt > availableLoan) {
+                        alert("대출 한도를 초과하여 대출이 거절되었습니다.");
+                        endTurn();
+                    } else {
+                        logMsg(`[P${p.id}] 대출을 받지 않고 넘어갔습니다.`);
+                        endTurn();
+                    }
+                }
+            }
+        } else if (tile.type === 'PRISON') {
+            alert("유동성 감옥에 갇혔습니다! 2턴간 이동할 수 전 이동할 수 없으며, 탈출 후 1턴간 부동산을 매수할 수 없습니다.");
+            p.prisonTurns = 2;
+            endTurn();
+        } else if (tile.type === 'EVENT') {
+            const baseEvents = [
+                { id: "연체이자", title: "밀린 연체이자 수령", desc: "임차인이 늦게 지급한 임차료에 대한 연체이자 10,000,000원을 받습니다. (영업외수익)", type: "journal", db: "현금", cr: "영업외수익", amt: 10000000 },
+                { id: "재산세", title: "재산세 납부", desc: "재산세 3,000,000원이 부과되었습니다. (세금과공과)", type: "journal", db: "세금과공과", cr: "현금", amt: 3000000 },
+                { id: "스태그", title: "스태그플레이션 발생", desc: "물가는 오르고 성장은 멈췄습니다.\n(모든 플레이어의 다음 임대수익 1회 정지)", type: "effect" },
+                { id: "금리인하", title: "금리 인하", desc: "중앙은행이 금리를 낮췄습니다.\n(모든 플레이어의 다음 대출이자 1회 면제 및 레버리지형 자산 가치 상승)", type: "effect" }
+            ];
+
+            let possibleEvents = [...baseEvents];
+
+            let hasBuilding = boardTiles.some(t => t.type === 'PROP' && t.owner === currentPlayer && t.propName === '건물');
+            if (hasBuilding) {
+                possibleEvents.push({ id: "수선비", title: "건물 수리비 발생", desc: "예기치 않은 수리비 5,000,000원이 발생했습니다. (수선비)", type: "journal", db: "수선비", cr: "현금", amt: 5000000 });
+                possibleEvents.push({ id: "용도변경", title: "용도 변경", desc: "가지고 있는 건물이 상업지로 바뀌어 임대료가 10% 상승합니다.", type: "effect" });
+            }
+
+            let has2YearBuilding = boardTiles.some(t => t.type === 'PROP' && t.owner === currentPlayer && t.propName === '건물' && (currentYear - t.buyYear) >= 2 && t.buyYear > 0);
+            if (has2YearBuilding) {
+                possibleEvents.push({ id: "감가상각", title: "감가상각의 늪", desc: "보유한지 2회계년도 이상 된 건물 수리비가 발생했습니다. (매매가의 10%)", type: "effect" });
+            }
+
+            // 1. 연속 등장 방지 보정 (확률 및 체감 분배 개선)
+            if (possibleEvents.length > 1) {
+                let filteredEvents = possibleEvents.filter(e => e.id !== lastEventId);
+                if (filteredEvents.length > 0) {
+                    possibleEvents = filteredEvents;
+                }
+            }
+
+            const ev = possibleEvents[Math.floor(Math.random() * possibleEvents.length)];
+            lastEventId = ev.id; // 최근 이벤트 기록
+            
+            alert(`이벤트 칸 도착!\n[${ev.title}]\n${ev.desc}`);
+
+            if (ev.type === "journal") {
+                triggerJournal(`이벤트: ${ev.title}`, `${ev.desc}\n위 안내에 따라 정확히 분개하세요.`, ev.db, ev.cr, ev.amt, endTurn);
+            } else {
+                if (ev.id === "스태그") {
+                    players.forEach(pl => pl.skipRent = true);
+                    logMsg(`[이벤트] 스태그플레이션! 모든 플레이어의 임대수익 1회 정지.`);
+                    endTurn();
+                } else if (ev.id === "금리인하") {
+                    players.forEach(pl => pl.skipInterest = true);
+                    logMsg(`[이벤트] 금리 인하! 모든 플레이어 대출이자 1회 면제.`);
+                    
+                    if (p.char === '레버리지형') {
+                        let totalIncrease = 0;
+                        let targetProp = null;
+                        boardTiles.forEach(t => {
+                            if (t.type === 'PROP' && t.owner === currentPlayer) {
+                                let inc = Math.floor(t.price * 0.1);
+                                t.price += inc;
+                                totalIncrease += inc;
+                                if (!targetProp) targetProp = t.propName;
+                            }
+                        });
+                        if (totalIncrease > 0) {
+                            alert(`레버리지형 특성으로 보유 부동산 가치가 10% 상승하여 총 ${formatNum(totalIncrease)}원 증가했습니다! 분개를 진행하세요.`);
+                            triggerJournal(`이벤트: 자산 가치 상승`, `레버리지형 효과로 부동산 가치 10% 상승.\n차변에 ${targetProp}(자산), 대변에 영업외수익을 분개하세요.`, targetProp, "영업외수익", totalIncrease, endTurn);
+                        } else {
+                            endTurn();
+                        }
+                    } else {
+                        endTurn();
+                    }
+                } else if (ev.id === "용도변경") {
+                    boardTiles.forEach(t => {
+                        if (t.type === 'PROP' && t.owner === currentPlayer && t.propName === '건물') {
+                            t.toll += Math.floor(t.toll * 0.1);
+                        }
+                    });
+                    alert("보유한 건물의 임대료가 10% 상승했습니다! (자동 반영)");
+                    logMsg(`[이벤트] 용도변경으로 인해 건물의 임대료가 상승했습니다.`);
+                    endTurn();
+                } else if (ev.id === "감가상각") {
+                    let repairCost = 0;
+                    boardTiles.forEach(t => {
+                        if (t.type === 'PROP' && t.owner === currentPlayer && t.propName === '건물' && (currentYear - t.buyYear) >= 2 && t.buyYear > 0) {
+                            repairCost += Math.floor(t.price * 0.1);
+                        }
+                    });
+                    if (repairCost > 0) {
+                        triggerJournal(`이벤트: 감가상각의 늪`, `건물 수리비 ${formatNum(repairCost)}원 발생.\n차변: 수선비 / 대변: 현금`, "수선비", "현금", repairCost, endTurn);
+                    } else {
+                        endTurn();
+                    }
+                }
+            }
+        } else {
+            endTurn();
+        }
+    }
+
+    function selectProperty(propName, price, toll) {
+        document.getElementById('prop-select-modal').style.display = 'none';
+        
+        const buyingPlayer = currentPlayer; 
+        const buyingTile = currentPropTile;
+        
+        triggerJournal(`부동산 매수 (${propName})`, 
+                       `현재 보유 현금: ${formatNum(players[buyingPlayer].balances["현금"])}원\n차변에 취득한 자산, 대변에 지불한 자산을 기입하세요.`,
+                       propName, '현금', price, () => {
+            
+            buyingTile.owner = buyingPlayer;
+            buyingTile.propName = propName;
+            buyingTile.price = price;
+            buyingTile.toll = toll;
+            
+            buyingTile.buyYear = currentYear;
+            buyingTile.valueIncreased = false;
+            
+            const cell = document.querySelector(`.cell[data-pos="${buyingTile.pos}"]`);
+            cell.querySelector('.cell-title').innerText = propName;
+            
+            const tag = cell.querySelector('.owner-tag');
+            tag.className = `owner-tag owner-p${buyingPlayer+1}`;
+            tag.innerText = `P${buyingPlayer+1}`;
+            tag.style.display = 'inline-block';
+            
+            logMsg(`[P${players[buyingPlayer].id}] ${propName} 취득 완료.`);
+            endTurn();
+        }, true);
+    }
+
+    function cancelPropertySelection() {
+        document.getElementById('prop-select-modal').style.display = 'none';
+        logMsg(`[P${players[currentPlayer].id}] 부동산 매수를 취소했습니다.`);
+        endTurn();
+    }
+
+    function backToPropSelect() {
+        document.getElementById('journal-modal').style.display = 'none';
+        document.getElementById('prop-select-modal').style.display = 'flex';
+    }
+
+    function cancelJournalProp() {
+        document.getElementById('journal-modal').style.display = 'none';
+        logMsg(`[P${players[currentPlayer].id}] 분개창에서 부동산 매수를 취소했습니다.`);
+        endTurn();
+    }
+
+    function endTurn() {
+        players[currentPlayer].turns++;
+        document.getElementById(`p${currentPlayer+1}-box`).style.border = '3px solid transparent';
+        
+        if (players[currentPlayer].turns === 4) {
+            triggerSettlement(currentPlayer);
+            return; 
+        }
+        passTurn();
+    }
+
+    function passTurn() {
+        currentPlayer = (currentPlayer === 0) ? 1 : 0;
+        
+        document.getElementById('current-player-turn').innerText = currentPlayer + 1;
+        document.getElementById(`p${currentPlayer+1}-box`).style.border = `3px solid ${currentPlayer===0?'#e74c3c':'#3498db'}`;
+        
+        if(currentPlayer === 0) {
+            document.getElementById('ui-turn').innerText = players[0].turns + 1;
+        }
+
+        document.getElementById('btn-dice').disabled = false;
+    }
+
+    let currentJournalCB = null;
+    let expectedDB = "", expectedCR = "", expectedAMT = 0;
+    let failCount = 0;
+    let isCurrentJournalProp = false;
+
+    function triggerJournal(title, desc, dbAcc, crAcc, amt, callback, isPropPurchase = false) {
+        expectedDB = dbAcc; expectedCR = crAcc; expectedAMT = amt;
+        currentJournalCB = callback;
+        failCount = 0;
+        isCurrentJournalProp = isPropPurchase;
+
+        document.getElementById('journal-title').innerText = title;
+        document.getElementById('journal-desc').innerText = desc;
+        document.getElementById('debit-account').value = '';
+        document.getElementById('credit-account').value = '';
+        document.getElementById('debit-amount').value = '';
+        document.getElementById('credit-amount').value = '';
+        document.getElementById('journal-hint').style.display = 'none';
+        
+        document.getElementById('journal-prop-actions').style.display = isPropPurchase ? 'flex' : 'none';
+        
+        document.getElementById('journal-modal').style.display = 'flex';
+    }
+
+    function submitJournal() {
+        const dAcc = document.getElementById('debit-account').value;
+        const cAcc = document.getElementById('credit-account').value;
+        const dAmt = parseNum(document.getElementById('debit-amount').value);
+        const cAmt = parseNum(document.getElementById('credit-amount').value);
+
+        if (!dAcc || !cAcc || dAmt <= 0) return alert("계정과목과 금액을 정확히 입력하세요.");
+        if (dAmt !== cAmt) return alert("차변과 대변의 금액이 일치하지 않습니다.");
+
+        if (isCurrentJournalProp && dAcc === expectedDB && cAcc === expectedCR && dAmt === expectedAMT) {
+            if (players[currentPlayer].balances["현금"] < dAmt) {
+                alert(`현금이 부족합니다! (현재 보유 현금: ${formatNum(players[currentPlayer].balances["현금"])}원)\n'부동산 변경' 버튼이나 '매수 취소' 버튼을 눌러주세요.`);
+                return; 
+            }
+        }
+
+        if (dAcc === expectedDB && cAcc === expectedCR && dAmt === expectedAMT) {
+            alert("정확합니다! 장부에 기록됩니다.");
+            document.getElementById('journal-modal').style.display = 'none';
+            
+            recordJournal(currentPlayer, dAcc, cAcc, dAmt, cAmt, document.getElementById('journal-title').innerText);
+            updateStatusUI(currentPlayer);
+            
+            if(currentJournalCB) currentJournalCB();
+        } else {
+            failCount++;
+            const hint = document.getElementById('journal-hint');
+            hint.style.display = 'block';
+            if (failCount === 1) {
+                hint.innerText = `[힌트] 차변: ${expectedDB}, 대변: ${expectedCR}, 금액: ${formatNum(expectedAMT)}원`;
+            } else {
+                alert("분개 실패! 강제로 기입됩니다.");
+                document.getElementById('journal-modal').style.display = 'none';
+                recordJournal(currentPlayer, expectedDB, expectedCR, expectedAMT, expectedAMT, "강제 분개");
+                updateStatusUI(currentPlayer);
+                if(currentJournalCB) currentJournalCB();
+            }
+        }
+    }
+
+    function recordJournal(pIdx, dAcc, cAcc, dAmt, cAmt, remark, isQuiet=false) {
+        const p = players[pIdx];
+        p.journals.push({ year: currentYear, turn: p.turns, db: dAcc, cr: cAcc, amt: dAmt, remark: remark });
+
+        const dType = getAccountType(dAcc);
+        const cType = getAccountType(cAcc);
+
+        if(dType === 'ASSET' || dType === 'EXPENSE') p.balances[dAcc] += dAmt;
+        else p.balances[dAcc] -= dAmt;
+
+        if(cType === 'LIABILITY' || cType === 'EQUITY' || cType === 'REVENUE') p.balances[cAcc] += cAmt;
+        else p.balances[cAcc] -= cAmt;
+
+        if(!isQuiet) logMsg(`[P${pIdx+1} 분개] (차) ${dAcc} / (대) ${cAcc} : ${formatNum(dAmt)}원`);
+    }
+
+        function updateStatusUI(pIdx) {
+            const p = players[pIdx];
+            let totAsset = p.balances["현금"] + p.balances["주택"] + p.balances["아파트"] + p.balances["건물"] + p.balances["리츠"];
+            let totDebt = p.balances["부채"];
+            let totEquity = totAsset - totDebt;
+
+            document.getElementById(`p${pIdx+1}-asset`).innerText = formatNum(totAsset);
+            document.getElementById(`p${pIdx+1}-debt`).innerText = formatNum(totDebt);
+            document.getElementById(`p${pIdx+1}-equity`).innerText = formatNum(totEquity);
+        }
+
+    let settlingPlayer = 0;
+
+    function triggerSettlement(pIdx) {
+        const p = players[pIdx];
+
+        if (p.char === '가치투자형') {
+            boardTiles.forEach(tile => {
+                if (tile.type === 'PROP' && tile.owner === pIdx && !tile.valueIncreased && tile.buyYear > 0) {
+                    if (currentYear - tile.buyYear >= 1) { 
+                        let increaseAmt = Math.floor(tile.price * 0.05);
+                        alert(`[결산 자동 반영] 가치투자형 특성으로 ${tile.propName}의 가치가 5%(${formatNum(increaseAmt)}원) 상승했습니다!`);
+                        
+                        tile.price += increaseAmt;
+                        tile.toll += Math.floor(tile.toll * 0.05);
+                        tile.valueIncreased = true; 
+
+                        recordJournal(pIdx, tile.propName, "영업외수익", increaseAmt, increaseAmt, `${tile.propName} 가치 5% 상승 (가치투자형)`, true);
+                    }
+                }
+            });
+        }
+
+        let reits = p.balances["리츠"];
+        if (reits > 0) {
+            let interest = Math.floor(reits * 0.15);
+            alert(`[결산 자동 반영] 리츠 보유액의 15%(${formatNum(interest)}원)가 투자수익(영업외수익)으로 반영되었습니다.`);
+            recordJournal(pIdx, "현금", "영업외수익", interest, interest, "리츠 투자수익 (15%)", true);
+        }
+
+        let debt = p.balances["부채"];
+        if (debt > 0) {
+            if (p.skipInterest) {
+                alert(`[결산 자동 반영] 금리 인하 이벤트 효과로 이번 연도 대출 이자가 1회 면제되었습니다!`);
+                p.skipInterest = false; 
+            } else {
+                let intRate = (p.char === '레버리지형') ? 0.08 : 0.05;
+                let loanInt = Math.floor(debt * intRate);
+                alert(`[결산 자동 반영] 대출 부채에 대한 이자비용 ${formatNum(loanInt)}원이 차감/반영되었습니다.`);
+                recordJournal(pIdx, "이자비용", "현금", loanInt, loanInt, "대출 이자비용", true);
+            }
+
+            if (currentYear - p.loanYear >= 2) {
+                let currentDebt = p.balances["부채"]; 
+                if (p.balances["현금"] >= currentDebt) {
+                    alert(`[결산 자동 반영] 대출 후 2년이 경과하여 부채 원금 ${formatNum(currentDebt)}원이 현금으로 자동 상환되었습니다.`);
+                    recordJournal(pIdx, "부채", "현금", currentDebt, currentDebt, "대출 원금 만기 자동 상환", true);
+                } else {
+                    let needed = currentDebt - p.balances["현금"];
+                    alert(`[결산 자동 반영] 대출 원금 ${formatNum(currentDebt)}원 상환을 위해 현금이 부족하여 보유 부동산 강제 매각을 진행합니다.`);
+                    
+                    let myProps = boardTiles.filter(t => t.type === 'PROP' && t.owner === pIdx);
+                    myProps.sort((a, b) => a.price - b.price);
+                    
+                    let sellLogs = [];
+                    for (let i = 0; i < myProps.length; i++) {
+                        if (needed <= 0) break;
+                        let tile = myProps[i];
+                        let sellPrice = Math.floor(tile.price * 0.8);
+                        let loss = tile.price - sellPrice;
+                        
+                        recordJournal(pIdx, "현금", tile.propName, sellPrice, sellPrice, `${tile.propName} 강제 매각 (80%)`, true);
+                        recordJournal(pIdx, "자산처분손실", tile.propName, loss, loss, `${tile.propName} 강제 매각 손실`, true);
+                        
+                        needed -= sellPrice;
+                        sellLogs.push(`${tile.propName}(${formatNum(sellPrice)}원)`);
+                        
+                        tile.owner = null;
+                        tile.propName = null;
+                        tile.price = 0;
+                        tile.toll = 0;
+                        tile.buyYear = 0;
+                        tile.valueIncreased = false;
+                        
+                        const cell = document.querySelector(`.cell[data-pos="${tile.pos}"]`);
+                        cell.querySelector('.cell-title').innerText = "부동산";
+                        const tag = cell.querySelector('.owner-tag');
+                        tag.style.display = 'none';
+                        tag.className = 'owner-tag';
+                    }
+                    
+                    if (sellLogs.length > 0) {
+                        alert(`현금 확보를 위해 다음 부동산이 80% 가격에 매각되었습니다:\n${sellLogs.join(", ")}`);
+                    } else {
+                        alert("매각할 수 있는 부동산이 없습니다.");
+                    }
+                    
+                    if (p.balances["현금"] >= currentDebt) {
+                        recordJournal(pIdx, "부채", "현금", currentDebt, currentDebt, "대출 원금 만기 상환 (매각 후)", true);
+                    } else {
+                        alert(`[결산 자동 반영] 모든 부동산을 매각해도 현금이 부족합니다. 잔여 현금으로 가능한 만큼 상환하고 모자란 금액은 강제 상환처리되어 현금이 마이너스가 됩니다.`);
+                        recordJournal(pIdx, "부채", "현금", currentDebt, currentDebt, "대출 원금 만기 강제 상환 (잔액부족)", true);
+                    }
+                }
+                p.loanYear = 0; 
+            }
+        }
+        
+        updateStatusUI(pIdx); 
+
+        settlingPlayer = pIdx;
+        document.getElementById('settle-year').innerText = currentYear;
+        document.getElementById('settle-player').innerText = `플레이어 ${pIdx+1}`;
+        document.getElementById('settlement-modal').style.display = 'flex';
+        document.getElementById('settle-hint').style.display = 'none';
+        
+        document.querySelectorAll('.fs-input').forEach(i => i.value = '');
+    }
+
+    function submitSettlement() {
+        const p = players[settlingPlayer];
+        
+        let actAsset = p.balances["현금"] + p.balances["주택"] + p.balances["아파트"] + p.balances["건물"] + p.balances["리츠"];
+        let actDebt = p.balances["부채"];
+        
+        let actRev = p.balances["임대료(영업외)"] + p.balances["임대수익"] + p.balances["영업외수익"];
+        let actExp = p.balances["지급임차료"] + p.balances["이자비용"] + p.balances["수선비"] + p.balances["세금과공과"] + p.balances["자산처분손실"];
+        let actNetIncome = actRev - actExp;
+        let actEquity = p.balances["자본금"] + actNetIncome; 
+
+        let uAsset = parseNum(document.getElementById('fs-asset').value);
+        let uDebt = parseNum(document.getElementById('fs-debt').value);
+        let uEquity = parseNum(document.getElementById('fs-equity').value);
+        let uRev = parseNum(document.getElementById('fs-revenue').value);
+        let uExp = parseNum(document.getElementById('fs-expense').value);
+        let uNetIncome = parseNum(document.getElementById('fs-netincome').value);
+
+        if(uAsset !== actAsset || uDebt !== actDebt || uEquity !== actEquity || 
+           uRev !== actRev || uExp !== actExp || uNetIncome !== actNetIncome) {
+            
+            document.getElementById('settle-hint').style.display = 'block';
+            document.getElementById('settle-hint').innerText = "틀렸습니다! 분개장과 시산표를 다시 확인하여 정확한 금액을 기입하세요.";
+            return;
+        }
+
+        alert(`[플레이어 ${settlingPlayer+1}] 연말결산이 완벽하게 마감되었습니다! 당기순이익이 자본에 편입됩니다.`);
+        
+        ["임대료(영업외)","임대수익","영업외수익"].forEach(acc => {
+            if(p.balances[acc] > 0) recordJournal(settlingPlayer, acc, "자본금", p.balances[acc], p.balances[acc], `결산 대체 마감 (${acc})`, true);
+        });
+        ["지급임차료","이자비용","수선비","세금과공과","자산처분손실"].forEach(acc => {
+            if(p.balances[acc] > 0) recordJournal(settlingPlayer, "자본금", acc, p.balances[acc], p.balances[acc], `결산 대체 마감 (${acc})`, true);
+        });
+        
+        p.turns = 0;
+        updateStatusUI(settlingPlayer);
+        document.getElementById('settlement-modal').style.display = 'none';
+
+        if (settlingPlayer === 0) {
+            passTurn();
+        } else {
+            if (currentYear >= 4) {
+                updateStatusUI(0);
+                updateStatusUI(1);
+                
+                let p1Eq = players[0].balances["자본금"];
+                let p2Eq = players[1].balances["자본금"];
+                
+                let resultMsg = "";
+                if (p1Eq > p2Eq) resultMsg = "플레이어 1 승리!";
+                else if (p2Eq > p1Eq) resultMsg = "플레이어 2 승리!";
+                else resultMsg = "무승부!";
+                
+                setTimeout(() => {
+                    alert(`[게임 종료] 4회계연도가 모두 마감되었습니다!\n\n플레이어 1 자본: ${formatNum(p1Eq)}원\n플레이어 2 자본: ${formatNum(p2Eq)}원\n\n최종 결과: ${resultMsg}`);
+                    const btnDice = document.getElementById('btn-dice');
+                    btnDice.disabled = true;
+                    btnDice.innerText = "게임 종료";
+                }, 500);
+                return;
+            }
+
+            currentYear++;
+            document.getElementById('ui-year').innerText = currentYear;
+            passTurn();
+            logMsg(`<hr><b>제 ${currentYear} 회계연도 시작!</b>`);
+        }
+    }
+
+    function showLedger(pIdx) {
+        const j = players[pIdx].journals;
+        let html = `<table class="ledger-table">
+            <tr><th>No.</th><th>연도</th><th>적요</th><th>차변</th><th>대변</th><th>금액</th></tr>`;
+        j.forEach((r, i) => {
+            html += `<tr><td>${i+1}</td><td>${r.year}년</td><td style="text-align:left;">${r.remark}</td><td>${r.db}</td><td>${r.cr}</td><td>${formatNum(r.amt)}</td></tr>`;
+        });
+        html += `</table>`;
+        openInfo(`플레이어 ${pIdx+1} 분개장`, html);
+    }
+
+    function showTrialBalance(pIdx) {
+        const b = players[pIdx].balances;
+        let html = `<table class="ledger-table">
+            <tr><th>차변 잔액</th><th>계정과목</th><th>대변 잔액</th></tr>`;
+        
+        let sumDb = 0, sumCr = 0;
+        
+        const typeGroups = [
+            { type: 'ASSET', label: '자산' },
+            { type: 'LIABILITY', label: '부채' },
+            { type: 'EQUITY', label: '자본' },
+            { type: 'REVENUE', label: '수익' },
+            { type: 'EXPENSE', label: '비용' }
+        ];
+
+        typeGroups.forEach(group => {
+            const accountsInGroup = ACCOUNTS.filter(acc => getAccountType(acc) === group.type && b[acc] !== 0);
+            
+            if (accountsInGroup.length > 0) {
+                html += `<tr style="background:#fdfdfd;"><td colspan="3" style="text-align:center; font-size:11px; color:#7f8c8d;">--- ${group.label} ---</td></tr>`;
+                accountsInGroup.forEach(acc => {
+                    const t = group.type;
+                    if(t === 'ASSET' || t === 'EXPENSE') {
+                        html += `<tr><td>${formatNum(b[acc])}</td><td style="text-align:center;"><b>${acc}</b></td><td></td></tr>`;
+                        sumDb += b[acc];
+                    } else {
+                        html += `<tr><td></td><td style="text-align:center;"><b>${acc}</b></td><td>${formatNum(b[acc])}</td></tr>`;
+                        sumCr += b[acc];
+                    }
+                });
+            }
+        });
+
+        html += `<tr style="background:#ecf0f1; font-weight:bold;"><td>${formatNum(sumDb)}</td><td style="text-align:center;">합계</td><td>${formatNum(sumCr)}</td></tr>`;
+        html += `</table>`;
+        openInfo(`플레이어 ${pIdx+1} 합계잔액시산표`, html);
+    }
+
+    function openInfo(title, html) {
+        document.getElementById('info-title').innerText = title;
+        document.getElementById('info-content').innerHTML = html;
+        document.getElementById('info-modal').style.display = 'flex';
+    }
+
+    document.querySelectorAll('input[type="text"]').forEach(input => {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === '+' || e.code === 'NumpadAdd') {
+                e.preventDefault();
+                let isNegative = this.value.startsWith('-');
+                let rawStr = this.value.replace(/[^\d]/g, '');
+                rawStr += '000';
+                let parsed = parseInt(rawStr, 10) || 0;
+                this.value = (isNegative ? '-' : '') + formatNum(parsed);
+            }
+        });
+        input.addEventListener('input', function() {
+            let isNegative = this.value.startsWith('-');
+            let rawStr = this.value.replace(/[^\d]/g, '');
+            if (rawStr === '') {
+                this.value = isNegative ? '-' : '';
+            } else {
+                let parsed = parseInt(rawStr, 10);
+                this.value = (isNegative ? '-' : '') + formatNum(parsed);
+            }
+        });
+    });
+
+</script>
+</body>
+</html>
