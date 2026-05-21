@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Y-tube.tax_sgl </title>
+    <style>
+        :root {
+            --p1: #ff4757; --p2: #1e90ff; --p3: #2ed573; --p4: #ffa502;
+            --cell-size: 120px; 
+        }
+        body { margin: 0; font-family: 'Malgun Gothic', sans-serif; background: #f0f2f5; overflow: hidden; }
+        #main-container { display: none; width: 100vw; height: 100vh; }
+        
+        #board-section { 
+            flex: 1; display: grid; 
+            grid-template-columns: repeat(8, var(--cell-size)); 
+            grid-template-rows: repeat(8, var(--cell-size));
+            gap: 3px; padding: 20px; background: #dfe4ea;
+            align-content: center; justify-content: center;
+        }
+        
+        .cell { 
+            background: white; border: 1px solid #ccc; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; font-size: 14px; position: relative;
+            transition: all 0.3s; padding: 5px;
+        }
+        .cell-icon { font-size: 32px; margin-bottom: 5px; }
+        .cell-info { font-size: 11px; color: #777; text-align: center; margin-top: 2px; }
+        
+        .inner-center { 
+            grid-column: 2 / 8; grid-row: 2 / 8; 
+            background: #f1f2f6; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; border: 2px dashed #bbb;
+        }
+        
+        #side-panel { width: 500px; background: #2f3542; color: white; padding: 20px; overflow-y: auto; }
+        
+        .player-card { background: rgba(255,255,255,0.1); padding: 15px; margin-bottom: 20px; border-radius: 10px; border-left: 8px solid transparent; }
+        .player-card b { font-size: 18px; }
+        
+        .fs-table { width: 100%; font-size: 13px; color: white; border-collapse: collapse; margin-top: 8px; }
+        .fs-table td, .fs-table th { border: 1px solid #57606f; padding: 6px; text-align: right; }
+        .fs-table th { background: rgba(255,255,255,0.2); text-align: center; font-size: 12px; }
+        .fs-title { font-size: 14px; font-weight: bold; color: #eccc68; margin-top: 12px; border-bottom: 1px solid #57606f; padding-bottom: 3px; }
+        
+        .journal-box { background: #1e2124; padding: 10px; margin-top: 10px; border-radius: 6px; border: 1px solid #57606f; }
+        .journal-table { width: 100%; font-size: 13px; color: #a4b0be; border-collapse: collapse; }
+        .journal-table th { color: #747d8c; border-bottom: 1px solid #57606f; padding-bottom: 5px; text-align: center; }
+        .journal-table td { padding: 4px; border-bottom: 1px solid #333; }
+
+        .ledger-toggle {
+            width: 100%; margin-top: 10px; padding: 8px; background: #57606f; 
+            color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;
+        }
+        .ledger-toggle:hover { background: #6f7a8a; }
+        .ledger-content { 
+            display: none; background: #000; margin-top: 5px; max-height: 150px; 
+            overflow-y: auto; border-radius: 4px; padding: 10px;
+        }
+
+        .tb-toggle {
+            width: 100%; margin-top: 5px; padding: 8px; background: #eccc68; 
+            color: #2f3542; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;
+        }
+        .tb-toggle:hover { background: #f1d484; }
+        .tb-content { 
+            display: none; background: #fffbe6; color: #333; margin-top: 5px; 
+            border-radius: 4px; padding: 10px; overflow-x: auto;
+        }
+        .tb-table { width: 100%; font-size: 11px; border-collapse: collapse; color: #333; }
+        .tb-table th { background: #fdf5d2; border: 1px solid #ddd; padding: 4px; }
+        .tb-table td { border: 1px solid #ddd; padding: 4px; text-align: right; }
+        .tb-table .item-name { text-align: center; background: #fafafa; font-weight: bold; }
+
+        #setup-layer { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .setup-box { background: white; padding: 50px; border-radius: 20px; text-align: center; width: 500px; }
+        
+        .piece { width: 22px; height: 22px; border-radius: 50%; border: 3px solid white; position: absolute; transition: all 0.4s ease; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .p1-p { background: var(--p1); } .p2-p { background: var(--p2); } .p3-p { background: var(--p3); } .p4-p { background: var(--p4); }
+        
+        .btn { padding: 15px 30px; cursor: pointer; border-radius: 10px; border: none; background: #2ed573; color: white; font-weight: bold; font-size: 20px; margin: 5px; }
+
+        .red-out {
+           /* sepia를 제거하고 밝기를 낮춘 뒤 강렬한 빨간색 필터를 씌웁니다 */
+    filter: brightness(0.4) sepia(1) hue-rotate(-50deg) saturate(5) contrast(1.5);
+    transition: filter 0.3s ease;
+    background-color: #4a0000; /* 배경색 자체를 어두운 빨강으로 깔아줍니다 */
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .noise-shake {
+            animation: shake 0.15s infinite;
+        } 
+    </style>
+</head>
+<body>
+
+<div id="setup-layer">
+    <div class="setup-box" id="step-1">
+        <h2>🎥 Y-tube.tax play인원 </h2>
+        <button class="btn" onclick="setTotalPlayers(2)">2인</button>
+        <button class="btn" onclick="setTotalPlayers(3)">3인</button>
+        <button class="btn" onclick="setTotalPlayers(4)">4인</button>
+    </div>
+    <div class="setup-box" id="step-2" style="display:none;">
+        <h2 id="setup-title">플레이어 1 설정</h2>
+        <input type="text" id="nickname-input" placeholder="닉네임을 입력하세요" maxlength="10" style="padding:10px; font-size:18px; margin-bottom:10px;"><br>
+        <select id="job-select" style="padding:10px; font-size:18px; width:250px; margin-bottom:20px;">
+            <option value="먹방">🍖 먹방</option><option value="게임">🎮 게임</option>
+            <option value="여행">✈️ 여행</option><option value="교육">📚 교육</option>
+        </select><br>
+        <button class="btn" onclick="confirmPlayerJob()">확인</button>
+    </div>
+</div>
+
+<div id="main-container">
+    <div id="board-section">
+        <div class="inner-center">
+            <h2 id="turn-info" style="margin:0;">주사위를 굴려주세요!</h2>
+            <div id="dice-val" style="font-size: 60px; margin: 10px 0;">🎲</div>
+            <button id="roll-btn" class="btn" style="background:#1e90ff;" onclick="rollDice()">주사위 굴리기</button>
+        </div>
+    </div>
+    <div id="side-panel">
+        <h2 style="text-align:center; color:#eccc68; margin-top:0; font-size: 24px;">📊 실시간 통합 재무제표</h2>
+        <div id="player-stats-area"></div>
+    </div>
+</div>
+
+<script>
+const cards = {
+    "먹방": [
+        { t: "[수익] 신상 맛집 탐방", m: 500000, s: 5, j: ["현금 500,000", "수익 500,000"] },
+        { t: "[비용] 대형 랍스터 구입", m: -200000, s: 3, j: ["비용 200,000", "현금 200,000"] },
+        { t: "[세무] 창업 지원금 수령", m: 500000, s: 0, msg: "청년 창업 지원 대상으로 선정되어 지원금 50만 원 입금!", j: ["현금 500,000", "자본금 500,000"] },
+        { t: "[리스크] 장염 발생", m: -100000, s: 0, jail: 1, j: ["손실 100,000", "현금 100,000"] },
+        { t: "[수익] 편의점 콜라보", m: 500000, s: 2, j: ["현금 500,000", "수익 500,000"] },
+        { t: "[비용] 푸드파이터 대회", m: -150000, s: 4, j: ["비용 150,000", "현금 150,000"] },
+        { t: "[세무] 주방 설비 매입", m: -500000, asset: 500000, s: 0, j: ["비품 500,000", "현금 500,000"] },
+        { t: "[수익] 알고리즘 추천", m: 0, s: 10, j: ["무형자산 ↑", "자본 ↑"] },
+        { t: "[비용] 촬영용 대형 테이블", m: -300000, asset: 300000, s: 0, j: ["비품 300,000", "현금 300,000"] },
+        { t: "[리스크] 배달 지연", m: 0, s: -2, j: ["자본 ↓", "구독자 ↓"] }
+    ],
+    "게임": [
+        { t: "[수익] 신작 게임 광고", m: 1000000, s: 0, j: ["현금 1,000,000", "수익 1,000,000"] },
+        { t: "[비용] 그래픽카드 교체", m: -800000, asset: 800000, s: 0, j: ["비품 800,000", "현금 800,000"] },
+        { t: "[세무] 투자세액 공제", m: 200000, s: 0, j: ["현금 200,000", "법인세환급 200,000"] },
+        { t: "[수익] e스포츠 중계", m: 400000, s: 3, j: ["현금 400,000", "수익 400,000"] },
+        { t: "[비용] 유료 게임 결제", m: -100000, s: 2, j: ["비용 100,000", "현금 100,000"] },
+        { t: "[리스크] 서버 점검", m: 0, s: -1, j: ["영업중단", "-"] },
+        { t: "[수익] 게임 굿즈 완판", m: 600000, s: 0, j: ["현금 600,000", "수익 600,000"] },
+        { t: "[비용] 고성능 마이크", m: -400000, asset: 400000, s: 0, j: ["비품 400,000", "현금 400,000"] },
+        { t: "[세무] 감가상각 혜택", m: 0, s: 0, msg: "다음 세금 15만 감면!", j: ["감가상각비 150,000", "누계액 150,000"] },
+        { t: "[리스크] 계정 해킹", m: -200000, s: 0, j: ["잡손실 200,000", "현금 200,000"] }
+    ],
+    "여행": [
+        { t: "[수익] 호텔 협찬", m: 700000, s: 0, j: ["현금 700,000", "수익 700,000"] },
+        { t: "[비용] 장거리 항공권", m: -1500000, s: 15, j: ["여비교통비 1,500,000", "현금 1,500,000"] },
+        { t: "[세무] 해외 세액 공제", m: 100000, s: 0, j: ["현금 100,000", "세액공제 100,000"] },
+        { t: "[수익] 환차익 발생", m: 300000, s: 0, j: ["현금 300,000", "외환차익 300,000"] },
+        { t: "[비용] 액션캠 분실", m: -500000, asset: -500000, s: 0, j: ["자산소실 500,000", "비품 500,000"] },
+        { t: "[리스크] 비행기 연착", m: -200000, s: 0, jail: 1, j: ["손실 200,000", "현금 200,000"] },
+        { t: "[수익] 여행 에세이 출간", m: 400000, s: 0, j: ["현금 400,000", "수익 400,000"] },
+        { t: "[비용] 현지 가이드 고용", m: -300000, s: 5, j: ["지급수수료 300,000", "현금 300,000"] },
+        { t: "[세무] 여비교통비 인정", m: 0, s: 0, msg: "다음 세금 20만 감면!", j: ["비용처리 200,000", "자본 200,000"] },
+        { t: "[수익] 한달 살기 시리즈", m: 300000, s: 5, j: ["현금 300,000", "수익 300,000"] }
+    ],
+    "교육": [
+        { t: "[수익] 온라인 강의 런칭", m: 2000000, s: 0, j: ["현금 2,000,000", "수익 2,000,000"] },
+        { t: "[비용] 참고서적 대량 구매", m: -100000, s: 1, j: ["도서인쇄비 100,000", "현금 100,000"] },
+        { t: "[세무] 면세 사업자 혜택", m: 300000, s: 0, j: ["현금 300,000", "부가세환급 300,000"] },
+        { t: "[수익] 기업 강연 요청", m: 800000, s: 0, j: ["현금 800,000", "수익 800,000"] },
+        { t: "[비용] 스터디룸 대관", m: -150000, s: 0, j: ["임차료 150,000", "현금 150,000"] },
+        { t: "[리스크] 저작권 위반 경고", m: -300000, s: -5, j: ["벌금 300,000", "현금 300,000"] },
+        { t: "[수익] 정부 교육 사업", m: 1000000, s: 0, j: ["현금 1,000,000", "수익 1,000,000"] },
+        { t: "[비용] 유료 폰트 구매", m: -200000, asset: 200000, s: 0, j: ["무형자산 200,000", "현금 200,000"] },
+        { t: "[세무] 인적 용역 공제", m: 0, s: 0, msg: "다음 세금 15만 감면!", j: ["인건비처리 150,000", "자본 150,000"] },
+        { t: "[수익] 뉴스 인터뷰", m: 0, s: 10, j: ["무형자산 ↑", "자본 ↑"] }
+    ],
+    "OX": [
+        { q: "유튜버가 촬영을 위해 산 카메라는 '비용'이 아니라 '자산'이다.", a: true },
+        { q: "구독자가 100만 명이 넘으면 세금을 한 푼도 안 내도 된다.", a: false },
+        { q: "방송 중 시켜 먹은 배달 음식 영수증은 비용 처리가 가능하다.", a: true },
+        { q: "세금은 현금이 없으면 나중에 구독자 수로 대신 낼 수 있다.", a: false },
+        { q: "장비 가치가 시간이 지나면서 줄어드는 것을 '감가상각'이라 한다.", a: true },
+        { q: "광고 수익(달러)은 소득세 신고 대상이 아니다.", a: false },
+        { q: "세무사에게 기장을 맡기는 비용은 '지급수수료'로 비용 처리가 된다.", a: true },
+        { q: "유튜버는 무조건 '면세 사업자'이다.", a: false },
+        { q: "세금을 제때 내지 않으면 '가산세'라는 벌금이 붙는다.", a: true },
+        { q: "장부를 꼼꼼히 쓰면 나중에 세금을 줄이는 데 도움이 된다.", a: true },
+    ],
+    "SPECIAL": [
+        { t: "[세무조사 착수]", msg: "현금의 30%가 세금으로 몰수됩니다!", rate: 0.3 },
+        { t: "[뒷광고 논란]", s: -20, m: -500000, msg: "구독자 20만 감소 및 벌금 50만 원!" },
+        { t: "[MCN 계약]", m: 1000000, msg: "즉시 보너스 100만 원 입금!" }
+    ]
+    
+};
+function applyCardEffect(p, card) {
+    // 1. 기본 금액 처리
+    if (card.m && card.m < 0) {
+        let costAmount = Math.abs(card.m); // 음수를 양수로 변환
+        p.cash -= costAmount;
+        p.expense += costAmount;
+
+        // 2. 계정과목 결정 (카드 제목이나 분개 데이터를 활용)
+        let accountName = "잡비"; // 기본값
+        
+        if (card.t.includes("지급수수료") || (card.j && card.j[0].includes("지급수수료"))) {
+            accountName = "지급수수료";
+        } else if (card.t.includes("여비교통비") || (card.j && card.j[0].includes("여비교통비"))) {
+            accountName = "여비교통비";
+        } else if (card.t.includes("도서인쇄비") || (card.j && card.j[0].includes("도서인쇄비"))) {
+            accountName = "도서인쇄비";
+        } else if (card.t.includes("임차료") || (card.j && card.j[0].includes("임차료"))) {
+            accountName = "임차료";
+        } else if (card.t.includes("벌금") || card.t.includes("리스크") || card.t.includes("세무")) {
+            accountName = "세금과공과";
+        } else if (card.t.includes("비용")) {
+            accountName = "콘텐츠제작비"; // 일반적인 비용
+        }
+
+        // 3. ★ 핵심: 시산표(T/B) 세부 내역에 기록
+        if (!p.expenseDetails[accountName]) {
+            p.expenseDetails[accountName] = { amount: 0, isNonOp: false };
+        }
+        p.expenseDetails[accountName].amount += costAmount;
+    }
+
+    // 4. 분개 기록 (카드에 있는 j 데이터 활용)
+    if (card.j) {
+        recordJournal(p, card.j[0], card.j[1]);
+    }
+    
+    // (기타 수익, 구독자 처리 로직...)
+    updateUI();
+}
+const boardData = [
+    { name: "START", icon: "🏁", info: "결산/수익발생", type: "start" },
+    { name: "입문용 콘덴서 마이크", icon: "🎤", info: "장비(10만)", type: "asset", cost: 100000, sub: 1, owner: null, jName: "비품" },
+    { name: "유료 폰트 구독", icon: "💾", info: "비용(2만)", type: "exp", cost: 20000, sub: 0.5, jName: "소모품비" },
+    { name: "황금카드", icon: "🗝️✨", info: "랜덤 이벤트", type: "event" },
+    { name: "COB LED 조명", icon: "💡⚡", info: "장비(15만)", type: "asset", cost: 150000, sub: 1.5, owner: null, jName: "비품" },
+    { name: "야외 촬영", icon: "📽️", info: "비용(15만)", type: "exp", cost: 150000, sub: 2, jName: "여비교통비" },
+    { name: "편집 tool", icon: "✂️", info: "장비(20만)", type: "asset", cost: 200000, sub: 2.5, owner: null, jName: "비품" },
+    { name: "뒷광고 논란", icon: "🚨🚔", info: "벌금 vs 감소", type: "jail" },
+    { name: "하이앤드 오디오 인터페이스", icon: "📱🔈", info: "장비(20만)", type: "asset", cost: 200000, sub: 3, owner: null, jName: "비품" },
+    { name: "광고 수익", icon: "💰", info: "수익(+30만)", type: "income", gain: 300000, sub: 2, jName: "광고수익" },
+    { name: "UNICEF 후원", icon: "🎁", info: "비용(100만)", type: "exp", cost: 1000000, sub: 1, jName: "기부금" },
+    { name: "편집자 고용", icon: "👨‍💻", info: "비용(25만)", type: "exp", cost: 250000, sub: 5, jName: "급여" },
+    { name: "듀얼 모니터 및 편집 컨트롤러", icon: "🖥️🎮", info: "장비(80만)", type: "asset", cost: 800000, sub: 10, owner: null, jName: "비품" },
+    { name: "Studio 월세", icon: "🏠", info: "비용(55만)", type: "exp", cost: 550000, sub: 1, jName: "임차료" },
+    { name: "황금카드", icon: "🗝️✨", info: "랜덤 이벤트", type: "event" },
+    { name: "방음부스 설치 ", icon: "🔇🔨", info: "장비(130만)", type: "asset", cost: 1300000, sub: 20, owner: null, jName: "비품" },
+    { name: "Google Edsense 수익", icon: "💵💸", info: "수익(+50만)", type: "income", gain: 500000, jName: "애드센스수익" },
+    { name: "휴가 v-log", icon: "🛌", info: "비용(10만)", type: "exp", cost: 100000, sub: 4, jName: "여비교통비" },
+    { name: "카메라 렌즈 Set", icon: "🎥", info: "장비(100만)", type: "asset", cost: 1000000, sub: 5, owner: null, jName: "비품" },
+    { name: "알고리즘 star", icon: "🚀📈", info: "수익(+50만)", type: "income", gain: 500000, sub: 15, jName: "콘텐츠수익" },
+    { name: "저작권 침해", icon: "🚫🎬", info: "자산 압수", type: "copyright" },
+    { name: "조회수 정체기", icon: "⏸️", info: "ZERO", type: "none" },
+    { name: "AirPods Max", icon: "🎧", info: "장비(80만)", type: "asset", cost: 800000, sub: 12, owner: null, jName: "비품" },
+    { name: "황금카드", icon: "🗝️✨", info: "랜덤 이벤트", type: "event" },
+    { name: "팬미팅", icon: "🎊", info: "비용(30만)", type: "exp", cost: 300000, sub: 7, jName: "행사비" },
+    { name: "촬영용 배경 Studio", icon: "🏢", info: "장비(200만)", type: "asset", cost: 2000000, sub: 30, owner: null, jName: "건물" },
+    { name: "채널멤버십 정기 구독", icon: "💖", info: "수익(+40만)", type: "income", gain: 400000, jName: "콘텐츠수익" },
+    { name: "굿즈 판매", icon: "📦", info: "수익(+80만)", type: "income", gain: 800000, jName: "상품수익" }
+];
+
+
+let maxP = 0, currentSetupP = 0, players = [], turn = 0, isGameOver = false;
+
+function setTotalPlayers(num) { maxP = num; document.getElementById('step-1').style.display = 'none'; document.getElementById('step-2').style.display = 'block'; }
+
+function confirmPlayerJob() {
+    const nick = document.getElementById('nickname-input').value.trim() || `플레이어${currentSetupP + 1}`;
+    players.push({
+        id: currentSetupP + 1, 
+        nickname: nick,
+        job: document.getElementById('job-select').value,
+        cash: 5000000, fAsset: 0, debt: 0, revenue: 0, expense: 0,expenseDetails: {}, subs: 0, pos: 0,
+        lastJournal: { left: "-", right: "-" },
+        journalHistory: []
+    });
+    document.getElementById('nickname-input').value = "";
+    currentSetupP++;
+    if(currentSetupP < maxP) document.getElementById('setup-title').innerText = `플레이어 ${currentSetupP + 1} 설정`;
+    else startGame();
+}
+
+function recordJournal(player, left, right) {
+    const entry = { left, right, time: new Date().toLocaleTimeString() };
+    player.lastJournal = entry;
+    player.journalHistory.unshift(entry);
+}
+
+function toggleLedger(pid) {
+    const content = document.getElementById(`ledger-${pid}`);
+    content.style.display = content.style.display === 'block' ? 'none' : 'block';
+}
+
+function toggleTB(pid) {
+    const content = document.getElementById(`tb-${pid}`);
+    content.style.display = content.style.display === 'block' ? 'none' : 'block';
+}
+
+function startGame() { document.getElementById('setup-layer').style.display = 'none'; document.getElementById('main-container').style.display = 'flex'; initBoard(); updateUI(); }
+
+function initBoard() {
+    const board = document.getElementById('board-section');
+    boardData.forEach((d, i) => {
+        const cell = document.createElement('div');
+        cell.className = 'cell'; cell.id = `cell-${i}`;
+        let r, c;
+        if(i < 8) { r = 8; c = 8 - i; } else if(i < 15) { r = 15 - i; c = 1; } else if(i < 22) { r = 1; c = i - 13; } else { r = i - 20; c = 8; }
+        cell.style.gridRow = r; cell.style.gridColumn = c;
+        cell.innerHTML = `<div class="cell-icon">${d.icon}</div><b>${d.name}</b><div class="cell-info">${d.info}</div><div id="piece-box-${i}" style="position:absolute; bottom:5px; left:0; width:100%; display:flex; justify-content:center; flex-wrap:wrap;"></div>`;
+        board.appendChild(cell);
+    });
+}
+
+function generateTB(p) {
+    // 1. 수익 및 비용 분류 계산
+    const nonOpRevTotal = p.revenueDetails?.["잡이익"] || 0; // 잡이익 합계
+    const opRevTotal = p.revenue - nonOpRevTotal;         // 전체수익 - 잡이익 = 영업수익
+
+    let opExpTotal = 0;
+    let nonOpExpTotal = 0;
+    for (let key in p.expenseDetails) {
+        const item = p.expenseDetails[key];
+        if (item.isNonOp) nonOpExpTotal += item.amount;
+        else opExpTotal += item.amount;
+    }
+
+    // 2. 데이터 배열 구성 (표에 표시될 순서대로)
+    const finalData = [
+        { name: "현금(당좌자산)", sumL: p.cash + p.expense + p.fAsset, sumR: p.revenue + p.debt + 5000000, balL: p.cash, balR: 0 },
+        { name: "유형자산", sumL: p.fAsset, sumR: 0, balL: p.fAsset, balR: 0 },
+        { name: "부채", sumL: 0, sumR: p.debt, balL: 0, balR: p.debt },
+        { name: "자본금(자본)", sumL: 0, sumR: 5000000, balL: 0, balR: 5000000 },
+        
+        // [수익 섹션]
+        { name: "수익", sumL: 0, sumR: opRevTotal, balL: 0, balR: opRevTotal },
+        { name: "영업외수익", sumL: 0, sumR: nonOpRevTotal, balL: 0, balR: nonOpRevTotal },
+        // 잡이익이 있을 때만 세부 내역 표시
+        ...(nonOpRevTotal > 0 ? [{ name: "잡이익", sumL: 0, sumR: nonOpRevTotal, balL: 0, balR: nonOpRevTotal, isSub: true }] : []),
+
+        // [비용 섹션]
+        { name: "비용", sumL: opExpTotal, sumR: 0, balL: opExpTotal, balR: 0 },
+        ...Object.keys(p.expenseDetails).filter(k => !p.expenseDetails[k].isNonOp).map(k => ({
+            name: k, sumL: p.expenseDetails[k].amount, sumR: 0, balL: p.expenseDetails[k].amount, balR: 0, isSub: true
+        })),
+        { name: "영업외비용", sumL: nonOpExpTotal, sumR: 0, balL: nonOpExpTotal, balR: 0 },
+        ...Object.keys(p.expenseDetails).filter(k => p.expenseDetails[k].isNonOp).map(k => ({
+            name: k, sumL: p.expenseDetails[k].amount, sumR: 0, balL: p.expenseDetails[k].amount, balR: 0, isSub: true
+        }))
+    ];
+
+    // 3. HTML 생성
+    let html = finalData.map(d => {
+        const isSub = d.isSub;
+        const isHeader = ["영업수익", "영업외수익", "영업비용", "영업외비용"].includes(d.name);
+        
+        return `
+        <tr>
+            <td>${(d.balL || 0).toLocaleString()}</td>
+            <td>${(d.sumL || 0).toLocaleString()}</td>
+            <td class="item-name" style="text-align:left; 
+                ${isSub ? 'padding-left:30px; color:#888;' : ''}
+                ${isHeader ? 'background:#f9f9f9; font-weight:bold;' : ''}">
+                ${d.name}
+            </td>
+            <td>${(d.sumR || 0).toLocaleString()}</td>
+            <td>${(d.balR || 0).toLocaleString()}</td>
+        </tr>`;
+    }).join("");
+
+    // 4. 합계 계산 (중복 방지를 위해 세부항목(isSub)은 제외하고 계산)
+    const totalBalL = finalData.filter(d => !d.isSub).reduce((s, d) => s + (d.balL || 0), 0);
+    const totalBalR = finalData.filter(d => !d.isSub).reduce((s, d) => s + (d.balR || 0), 0);
+
+    html += `<tr style="background:#fdf5d2; font-weight:bold;">
+        <td>${totalBalL.toLocaleString()}</td><td></td><td class="item-name">합 계</td><td></td><td>${totalBalR.toLocaleString()}</td>
+    </tr>`;
+    
+    return html;
+}
+
+function updateUI() {
+    const area = document.getElementById('player-stats-area');
+    area.innerHTML = "";
+    players.forEach((p, i) => {
+        const card = document.createElement('div');
+        card.className = 'player-card'; card.style.borderLeftColor = `var(--p${i+1})`;
+        const netAsset = (p.cash + p.fAsset) - p.debt;
+        let historyHtml = p.journalHistory.map(h => `<tr><td>${h.left}</td><td>${h.right}</td></tr>`).join("");
+        card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;"><b>${p.nickname} [${p.job}]</b> <span style="color:#ff4757; font-weight:bold;">● ${p.subs.toFixed(1)}만 명</span></div>
+            <div class="fs-title">1. 재무상태표 (BS)</div>
+            <table class="fs-table">
+                <tr><th>현금</th><th>장비</th><th>부채</th><th>순자산</th></tr>
+                <tr><td>${p.cash.toLocaleString()}</td><td>${p.fAsset.toLocaleString()}</td><td>${p.debt.toLocaleString()}</td><td>${netAsset.toLocaleString()}</td></tr>
+            </table>
+            <div class="fs-title">2. 손익계산서 (PL)</div>
+            <table class="fs-table">
+                <tr><th>총 수익</th><th>총 비용</th><th>당기순이익</th></tr>
+                <tr><td>${p.revenue.toLocaleString()}</td><td>${p.expense.toLocaleString()}</td><td>${(p.revenue - p.expense).toLocaleString()}</td></tr>
+            </table>
+            <div class="fs-title">3. 최근 거래 분개 (Journal)</div>
+            <div class="journal-box">
+                <table class="journal-table">
+                    <tr><th width="50%">차변 (Debtor)</th><th width="50%">대변 (Creditor)</th></tr>
+                    <tr><td>${p.lastJournal.left}</td><td>${p.lastJournal.right}</td></tr>
+                </table>
+            </div>
+            <button class="ledger-toggle" onclick="toggleLedger(${p.id})">📖 전체 분개장(Ledger) 보기/닫기</button>
+            <div class="ledger-content" id="ledger-${p.id}">
+                <table class="journal-table" style="font-size:11px;">
+                    <thead style="position:sticky; top:0; background:#000;"><tr><th>차변</th><th>대변</th></tr></thead>
+                    <tbody>${historyHtml || "<tr><td colspan='2' style='text-align:center;'>내역 없음</td></tr>"}</tbody>
+                </table>
+            </div>
+            <button class="tb-toggle" onclick="toggleTB(${p.id})">📒 합계잔액시산표(T/B) 보기/닫기</button>
+            <div class="tb-content" id="tb-${p.id}">
+                <table class="tb-table">
+                    <thead>
+                        <tr><th colspan="2">차변</th><th rowspan="2">계정과목</th><th colspan="2">대변</th></tr>
+                        <tr><th>잔액</th><th>합계</th><th>합계</th><th>잔액</th></tr>
+                    </thead>
+                    <tbody>${generateTB(p)}</tbody>
+                </table>
+            </div>
+            `;
+        area.appendChild(card);
+        let box = document.getElementById(`piece-box-${p.pos}`);
+        let piece = document.getElementById(`piece-p${p.id}`) || document.createElement('div');
+        piece.id = `piece-p${p.id}`; piece.className = `piece p${p.id}-p`;
+        box.appendChild(piece); piece.style.position = "static"; piece.style.margin = "2px";
+    });
+    if(!isGameOver) {
+        document.getElementById('turn-info').innerText = `${players[turn].nickname} 차례`;
+        document.getElementById('turn-info').style.color = `var(--p${turn+1})`;
+    }
+}
+
+async function rollDice() {
+    if(isGameOver) return;
+    const btn = document.getElementById('roll-btn');
+    btn.disabled = true;
+    let dice = 0;
+    for(let i=0; i<8; i++) {
+        dice = Math.floor(Math.random() * 6) + 1;
+        document.getElementById('dice-val').innerText = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"][dice];
+        await new Promise(r => setTimeout(r, 70));
+    }
+    let p = players[turn];
+    let oldPos = p.pos;
+    p.pos = (p.pos + dice) % 28;
+
+    if(p.pos < oldPos) { 
+        let tax = Math.floor(p.cash * 0.1);
+        p.cash -= tax; p.expense += tax;
+        if (!p.expenseDetails["세금과공과"]) {
+            p.expenseDetails["세금과공과"] = { amount: 0, isNonOp: false }; 
+        }
+        p.expenseDetails["세금과공과"].amount += tax;
+        p.cash += 3000000; p.revenue += 3000000;
+        alert(`결산기 도래!\n소득세 납부: -${tax.toLocaleString()}원\n기말 정산금: +3,000,000원`);
+        recordJournal(p, `세금과공과 ${tax.toLocaleString()}`, `현금 ${tax.toLocaleString()}`);
+        recordJournal(p, "현금 3,000,000", "수익 3,000,000");
+    }
+    setTimeout(() => {
+        handleCell(p, boardData[p.pos]);
+        checkGameOver();
+        if(!isGameOver) { turn = (turn + 1) % maxP; btn.disabled = false; updateUI(); }
+    }, 300);
+}
+
+function handleCell(p, cell) {
+    if(cell.type === "asset") {
+        if(cell.owner === null) {
+            if(confirm(`[${cell.name}] 매입하시겠습니까?\n비용: ${cell.cost.toLocaleString()}원`)) {
+                if(p.cash >= cell.cost) { 
+                    p.cash -= cell.cost; p.fAsset += cell.cost; p.subs += cell.sub; cell.owner = turn; 
+                    const target = document.getElementById(`cell-${p.pos}`);
+                    target.style.backgroundColor = `var(--p${turn + 1})`; target.style.color = "white";
+                    target.querySelector('.cell-info').style.color = "#eee";
+                    recordJournal(p, `${cell.jName} ${cell.cost.toLocaleString()}`, `현금 ${cell.cost.toLocaleString()}`);
+                } else alert("현금이 부족합니다!");
+            }
+        } else if(cell.owner !== turn) {
+            let fee = Math.floor(cell.cost * 0.1);
+            alert(`타인의 자산! 출연료 ${fee.toLocaleString()}원 지급.`);
+            p.cash -= fee; p.expense += fee; players[cell.owner].cash += fee; players[cell.owner].revenue += fee;
+            if (!p.expenseDetails["지급수수료"]) {
+        p.expenseDetails["지급수수료"] = { amount: 0, isNonOp: false };
+    }
+    p.expenseDetails["지급수수료"].amount += fee;
+            recordJournal(p, `지급수수료 ${fee.toLocaleString()}`, `현금 ${fee.toLocaleString()}`);
+            recordJournal(players[cell.owner], `현금 ${fee.toLocaleString()}`, `수익 ${fee.toLocaleString()}`);
+        }
+    } else if(cell.type === "event") drawGoldenKey(p);
+    else if(cell.type === "exp") { 
+        // 1. 기본 비용 처리 (모든 비용 칸 공통)
+        p.cash -= cell.cost; 
+        p.expense += cell.cost; 
+        p.subs += cell.sub; 
+        const jName = cell.jName || "기타비용";
+       // [추가] 기부금일 경우 영업외비용으로 분류하기 위한 체크
+        const isNonOp = (jName === "기부금");
+
+        // [수정] expenseDetails 구조를 숫자에서 객체로 변경하여 저장
+        if (!p.expenseDetails[jName]) {
+            p.expenseDetails[jName] = { amount: 0, isNonOp: isNonOp };
+        }
+        
+        // 기존에 숫자로 되어있을 경우를 대비한 안전장치 포함
+        if (typeof p.expenseDetails[jName] === 'number') {
+            p.expenseDetails[jName] = { amount: p.expenseDetails[jName], isNonOp: isNonOp };
+        }
+
+        p.expenseDetails[jName].amount += cell.cost;
+
+        // 분개 기록 (중복 기록되지 않게 한 번만 작성)
+        recordJournal(p, `${jName} ${cell.cost.toLocaleString()}`, `현금 ${cell.cost.toLocaleString()}`);
+
+        // 2. [특별 이벤트] UNICEF 후원 칸일 경우에만 실행
+        if(cell.name === "UNICEF 후원") {
+            const luck = Math.random(); 
+
+            if(luck < 0.3) { 
+                const reward = cell.cost * 2; 
+                
+                setTimeout(() => {
+                    alert(`✨ 기부의 기적! ✨\n후원에 감동한 익명의 팬이 제작비로 ${reward.toLocaleString()}원을 보냈습니다!`);
+                    
+                    p.cash += reward;
+                    p.revenue += reward; // 전체 수익 합계에 포함
+
+                    // [추가] 영업외수익(잡이익) 상세 내역 저장
+                    if (!p.revenueDetails) p.revenueDetails = {}; 
+                    p.revenueDetails["잡이익"] = (p.revenueDetails["잡이익"] || 0) + reward;
+                    
+                    recordJournal(p, `현금 ${reward.toLocaleString()}`, `잡이익(영업외수익) ${reward.toLocaleString()}`);
+                    updateUI(); 
+                }, 600);
+            } else {
+                setTimeout(() => {
+                    alert("따뜻한 후원에 감사드립니다! 구독자들의 응원 댓글이 쏟아집니다.");
+                }, 600);
+            }
+        }
+    
+    } else if(cell.type === "income") { 
+        p.cash += cell.gain; p.revenue += cell.gain; if(cell.sub) p.subs += cell.sub; 
+        recordJournal(p, `현금 ${cell.gain.toLocaleString()}`, `${cell.jName} ${cell.gain.toLocaleString()}`);
+   } else if(cell.type === "jail") {
+        document.body.classList.add('red-out', 'noise-shake');
+        setTimeout(() => {
+            const choice = confirm(`[🚨 뒷광고 논란 발생!] 선택이 필요합니다.\n\n확인(OK): 벌금을 냅니다. (현금의 50% 차감)\n취소(Cancel): 자숙하여 구독자가 감소합니다. (구독자 50% 차감)`);
+            if(choice) {
+                const fine = Math.floor(p.cash * 0.5);
+                p.cash -= fine; p.expense += fine;
+                if (!p.expenseDetails["세금과공과"]) {
+                p.expenseDetails["세금과공과"] = { amount: 0, isNonOp: false };
+            }
+            p.expenseDetails["세금과공과"].amount += fine;
+                alert(`벌금으로 ${fine.toLocaleString()}원이 지출되었습니다.`);
+                recordJournal(p, `세금과공과 ${fine.toLocaleString()}`, `현금 ${fine.toLocaleString()}`);
+            } else {
+                const lostSubs = (p.subs * 0.5).toFixed(1);
+                p.subs = parseFloat((p.subs * 0.5).toFixed(1));
+                alert(`자숙의 시간을 갖습니다. 구독자가 ${lostSubs}만 명 감소했습니다.`);
+                recordJournal(p, "구독자 급감 (무형자산 감소)", "-");
+            }
+            document.body.classList.remove('red-out', 'noise-shake');
+            updateUI(); 
+        }, 100);
+    } 
+    // --- [새로 추가된 저작권 침해 로직] ---
+else if(cell.type === "copyright") {
+        document.body.classList.add('red-out', 'noise-shake');
+        
+        // 💡 핵심 수정: turn 변수는 실시간으로 변하지만, 
+        // p.id는 현재 주사위를 굴린 사람의 고정된 번호입니다. (1부터 시작하므로 -1)
+        const myId = p.id - 1; 
+
+        setTimeout(() => {
+            alert(`[🚫 저작권 침해 콘텐츠 삭제]\n${p.nickname}님의 채널 자산 중 하나가 무작위로 삭제됩니다!`);
+            
+            // 1. 전체 보드판에서 '나(myId)'의 자산만 찾아 인덱스를 수집
+            let myAssetIndices = [];
+            for(let i = 0; i < boardData.length; i++) {
+                if(boardData[i].owner === myId) {
+                    myAssetIndices.push(i);
+                }
+            }
+
+            if (myAssetIndices.length > 0) {
+                // 2. 내 자산 중 하나를 무작위 선택
+                const randomIndex = myAssetIndices[Math.floor(Math.random() * myAssetIndices.length)];
+                const targetAsset = boardData[randomIndex];
+                
+
+                // 3. 데이터 업데이트 (내 돈 깎고, 소유권 없애기)
+                p.fAsset -= targetAsset.cost;
+                p.expense += targetAsset.cost; 
+                if (!p.expenseDetails["잡손실"]) {
+                p.expenseDetails["잡손실"] = { amount: 0, isNonOp: true }; // 영업외비용으로 처리
+            }
+            p.expenseDetails["잡손실"].amount += targetAsset.cost;
+                targetAsset.owner = null; 
+
+                // 4. UI 복구 (해당 칸을 다시 흰색으로)
+                const cellElement = document.getElementById(`cell-${randomIndex}`);
+                if (cellElement) {
+                    cellElement.style.backgroundColor = "white";
+                    cellElement.style.color = "black";
+                    const infoText = cellElement.querySelector('.cell-info');
+                    if(infoText) infoText.style.color = "#777";
+                }
+
+                alert(`[${targetAsset.name}] 자산이 삭제되었습니다.`);
+                recordJournal(p, `잡손실(자산손상차손) ${targetAsset.cost.toLocaleString()}`, `${targetAsset.name} 삭제`);
+            } else {
+                alert("삭제할 자산이 없어 무사히 넘어갑니다.");
+            }
+
+            document.body.classList.remove('red-out', 'noise-shake');
+            updateUI();
+        }, 100);
+    }
+}
+
+function drawGoldenKey(p) {
+    const r = Math.random();
+    if(r < 0.6) {
+        const myCards = cards[p.job];
+        const card = myCards[Math.floor(Math.random() * myCards.length)];
+        alert(`[황금열쇠]\n${card.t}\n${card.msg || ""}`);
+        if(card.m) { 
+            p.cash += card.m; 
+            if(card.m > 0) p.revenue += card.m; 
+            else p.expense += Math.abs(card.m); 
+        }
+        if(card.s) p.subs += card.s;
+        if(card.asset) p.fAsset += card.asset;
+        if(card.j) recordJournal(p, card.j[0], card.j[1]);
+    } else if(r < 0.85) {
+        const q = cards.OX[Math.floor(Math.random() * cards.OX.length)];
+        const ans = confirm(`[O/X 퀴즈]\n${q.q}`);
+        if(ans === q.a) { 
+            alert("정답! +50만"); 
+            p.cash += 500000; 
+            p.revenue += 500000; 
+            recordJournal(p, "현금 500,000", "수익 500,000"); 
+        } else {
+            alert("오답!");
+        }
+    } else {
+    const sc = cards.SPECIAL[Math.floor(Math.random() * cards.SPECIAL.length)];
+    alert(`[특수!]\n${sc.t}\n${sc.msg}`);
+    
+    // 1. 비율 차감 로직 (세무조사 등)
+    if(sc.rate) { 
+        const tax = Math.floor(p.cash * sc.rate); 
+        p.cash -= tax; 
+        p.expense += tax; 
+
+        // [중요] 시산표 상세 내역(expenseDetails)에 반영
+        if (!p.expenseDetails["세금과공과"]) {
+            p.expenseDetails["세금과공과"] = { amount: 0, isNonOp: false }; // 영업비용으로 설정
+        }
+        p.expenseDetails["세금과공과"].amount += tax;
+
+        recordJournal(p, `세금과공과 ${tax.toLocaleString()}`, `현금 ${tax.toLocaleString()}`); 
+    } 
+    
+    // 2. 일반 금액 처리 (기존 로직 유지)
+    if(sc.m) { 
+        p.cash += sc.m; 
+        if(sc.m > 0) p.revenue += sc.m;
+        else {
+            p.expense += Math.abs(sc.m);
+            // 일반 마이너스 금액도 필요하다면 여기에 세부 항목 처리를 추가할 수 있습니다.
+        }
+    }
+    
+    if(sc.s) p.subs += sc.s;
+    }
+}
+
+function checkGameOver() {
+    players.forEach(p => {
+        if(p.subs >= 100) {
+            isGameOver = true;
+            document.getElementById('turn-info').innerText = "🎉 100만 달성! 🎉";
+            const winner = [...players].sort((a,b) => ((b.cash+b.fAsset)-b.debt) - ((a.cash+a.fAsset)-a.debt))[0];
+            alert(`최종 승자: ${winner.nickname}님`);
+            document.getElementById('roll-btn').style.display = 'none';
+        }
+    });
+}
+</script>
+</body>
+</html>
