@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>지킬 수 스페이스 만두 팩토리 - 마스터 에디션</title>
+  
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <style>
+    .water-fill { transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+    .fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .confetti {
+      position: absolute; width: 12px; height: 12px;
+      animation: storm 4s ease-out infinite; opacity: 0;
+    }
+    @keyframes storm {
+      0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(700px) rotate(360deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex items-center justify-center p-4">
+  
+  <div id="root" class="w-full max-w-[1280px]"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    const getAccountingRuleText = (type, side) => {
+      if (side === 'debit') {
+        if (type === 'asset') return '▲ 자산의 증가';
+        if (type === 'liability') return '▼ 부채의 감소';
+        if (type === 'expense') return '▲ 비용의 발생';
+      } else {
+        if (type === 'asset') return '▼ 자산의 감소';
+        if (type === 'liability') return '▲ 부채의 증가';
+        if (type === 'revenue') return '▲ 수익의 발생';
+      }
+      return '';
+    };
+
+    // '지킬 수 스페이스 만두 공장' 스토리라인 기반 전산세무 2급 5문항
+    const problems = [
+      {
+        turn: 1,
+        title: "STEP 1. 우주 만두피 원재료 매입",
+        desc: "지구 정복용 '초차원 우주 만두피' 원재료 22,000원을 외상으로 긴급 매입하였습니다. (매입세액 포함)",
+        blocks: [
+          { id: 'm1', name: '원재료 (자산)', type: 'asset', amount: 22000, color: 'bg-indigo-600' },
+          { id: 'l1', name: '외상매입금 (부채)', type: 'liability', amount: 22000, color: 'bg-rose-600' },
+          { id: 'c1', name: '보통예금 (자산)', type: 'asset', amount: 22000, color: 'bg-blue-600' },
+          { id: 'r1', name: '제품매출 (수익)', type: 'revenue', amount: 22000, color: 'bg-emerald-600' }
+        ],
+        answer: { debit: 'm1', credit: 'l1' },
+        explanation: "우주 만두를 만들 원재료(자산)가 늘어났고, 외상으로 샀으므로 주된 상거래 채무인 외상매입금(부채)이 증가했습니다!"
+      },
+      {
+        turn: 2,
+        title: "STEP 2. 만두 제조 AI 엔지니어 급여 지급",
+        desc: "만두 빚는 초고속 AI 로봇을 개발한 연구원에게 이번 달 급여 10,000원을 보통예금 계좌에서 이체했습니다.",
+        blocks: [
+          { id: 'x2', name: '급여 (비용)', type: 'expense', amount: 10000, color: 'bg-amber-600' },
+          { id: 'c2', name: '보통예금 (자산)', type: 'asset', amount: 10000, color: 'bg-blue-600' },
+          { id: 'l2', name: '미지급금 (부채)', type: 'liability', amount: 10000, color: 'bg-rose-600' },
+          { id: 'r2', name: '이자수익 (수익)', type: 'revenue', amount: 10000, color: 'bg-emerald-600' }
+        ],
+        answer: { debit: 'x2', credit: 'c2' },
+        explanation: "핵심 인재를 지키기 위한 급여(판관비 비용)가 발생했고, 회사의 자산인 보통예금이 그만큼 줄어들었습니다."
+      },
+      {
+        turn: 3,
+        title: "STEP 3. 뉴욕 타임스퀘어 만두 수출 잭팟",
+        desc: "드디어 완성된 '스페이스 K-만두'를 뉴욕 타임스퀘어 본점에 $10(환율 1,300원 적용하여 13,000원)에 외상 수출했습니다.",
+        blocks: [
+          { id: 'a3', name: '외상매출금 (자산)', type: 'asset', amount: 13000, color: 'bg-blue-500' },
+          { id: 'r3', name: '수출매출 (수익)', type: 'revenue', amount: 13000, color: 'bg-emerald-600' },
+          { id: 'x3', name: '운반비 (비용)', type: 'expense', amount: 13000, color: 'bg-amber-600' },
+          { id: 'l3', name: '단기차입금 (부채)', type: 'liability', amount: 13000, color: 'bg-rose-600' }
+        ],
+        answer: { debit: 'a3', credit: 'r3' },
+        explanation: "글로벌 대박! 외화 직수출 매출(수익)이 시원하게 발생했고, 대금은 나중에 받기로 했으니 외상매출금(자산) 확정입니다."
+      },
+      {
+        turn: 4,
+        title: "STEP 4. 비밀 만두 레시피 화재보험 가입",
+        desc: "극비 만두 레시피 금고를 지키기 위해 1년치 화재보험료 12,000원을 보통예금에서 선납하고, 전액 '자산'으로 처리했습니다.",
+        blocks: [
+          { id: 'a4', name: '선급비용 (자산)', type: 'asset', amount: 12000, color: 'bg-cyan-600' },
+          { id: 'c4', name: '보통예금 (자산)', type: 'asset', amount: 12000, color: 'bg-blue-600' },
+          { id: 'x4', name: '보험료 (비용)', type: 'expense', amount: 12000, color: 'bg-amber-600' },
+          { id: 'l4', name: '외상매입금 (부채)', type: 'liability', amount: 12000, color: 'bg-rose-600' }
+        ],
+        answer: { debit: 'a4', credit: 'c4' },
+        explanation: "보험료를 미리 냈는데 문제에서 '자산'으로 처리하라고 지정했으므로, 선급비용(자산) 증가로 잡아야 정답입니다!"
+      },
+      {
+        turn: 5,
+        title: "STEP 5. 외상대금 회수와 환율 폭등 호재",
+        desc: "뉴욕에서 외상값($10)이 들어왔는데 그새 환율이 폭등했습니다! 장부보다 10,000원이 더 보태져서 보통예금에 꽂혔습니다.",
+        blocks: [
+          { id: 'c5', name: '보통예금 (자산)', type: 'asset', amount: 10000, color: 'bg-blue-600' },
+          { id: 'r5', name: '외환차익 (수익)', type: 'revenue', amount: 10000, color: 'bg-emerald-500' },
+          { id: 'x5', name: '외환차손 (비용)', type: 'expense', amount: 10000, color: 'bg-amber-600' },
+          { id: 'l5', name: '예수금 (부채)', type: 'liability', amount: 10000, color: 'bg-rose-600' }
+        ],
+        answer: { debit: 'c5', credit: 'r5' },
+        explanation: "외화 자산을 돌려받을 때 환율 변동으로 개이득을 보았군요! 영업외수익 항목인 외환차익(수익)이 발생했습니다."
+      }
+    ];
+
+    function AccountingGame() {
+      const [currentTurn, setCurrentTurn] = useState(0);
+      const [debitSlot, setDebitSlot] = useState(null);
+      const [creditSlot, setCreditSlot] = useState(null);
+      const [isSubmitted, setIsSubmitted] = useState(false);
+      const [isGameOver, setIsGameOver] = useState(false);
+
+      // 만두공장 자산 기본금 50,000원, 부채 10,000원으로 시작
+      const [totals, setTotals] = useState({ asset: 50000, liability: 10000, revenue: 0, expense: 0 });
+
+      const problem = problems[currentTurn];
+
+      const handleBlockClick = (block) => {
+        if (isSubmitted) return;
+        if (!debitSlot) setDebitSlot(block);
+        else if (!creditSlot) setCreditSlot(block);
+      };
+
+      const handleClear = () => {
+        if (isSubmitted) return;
+        setDebitSlot(null);
+        setCreditSlot(null);
+      };
+
+      const handleSubmit = () => {
+        if (debitSlot?.id === problem.answer.debit && creditSlot?.id === problem.answer.credit) {
+          setIsSubmitted(true);
+          
+          setTimeout(() => {
+            setTotals(prev => {
+              const next = { ...prev };
+              if (debitSlot.type === 'asset') next.asset += debitSlot.amount;
+              if (debitSlot.type === 'liability') next.liability -= debitSlot.amount;
+              if (debitSlot.type === 'expense') next.expense += debitSlot.amount;
+              
+              if (creditSlot.type === 'asset') next.asset -= creditSlot.amount;
+              if (creditSlot.type === 'liability') next.liability += creditSlot.amount;
+              if (creditSlot.type === 'revenue') next.revenue += creditSlot.amount;
+              return next;
+            });
+          }, 100);
+        } else {
+          alert('🚨 차대변 원리 오류! 우주 만두 공장의 회계 시스템이 거부했습니다. 다시 정렬하세요.');
+          handleClear();
+        }
+      };
+
+      const handleNextTurn = () => {
+        if (currentTurn < problems.length - 1) {
+          setCurrentTurn(prev => prev + 1);
+          setDebitSlot(null);
+          setCreditSlot(null);
+          setIsSubmitted(false);
+        } else {
+          setIsGameOver(true);
+        }
+      };
+
+      if (isGameOver) {
+        const netIncome = totals.revenue - totals.expense;
+        const totalEquity = 40000 + netIncome; // 기초자본 40,000원 가정
+
+        return (
+          <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-10 max-w-5xl mx-auto shadow-2xl relative overflow-hidden fade-in text-center">
+            {/* 화려한 대결산 축하 폭죽 가동 */}
+            {[...Array(25)].map((_, i) => (
+              <div key={i} class="confetti" style={{ left: `${i * 4}%`, animationDelay: `${Math.random() * 2.5}s`, backgroundColor: i % 3 === 0 ? '#3b82f6' : i % 3 === 1 ? '#10b981' : '#f59e0b' }}></div>
+            ))}
+
+            <div className="inline-block bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-4 py-1 rounded-full text-xs font-bold mb-4 uppercase tracking-widest">
+              ✨ Year-End Closing Report
+            </div>
+            <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-emerald-400 mb-2">지킬 수 스페이스 만두 공장 주주총회</h1>
+            <p className="text-slate-400 text-base mb-10">우주 진출 첫해 최종 확정 재무제표 보고서</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10 text-left">
+              
+              {/* 대형 재무상태표 */}
+              <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 shadow-inner">
+                <h2 className="text-lg font-bold text-blue-400 mb-4 border-b border-slate-800 pb-2 flex justify-between items-center">
+                  <span><i class="fa-solid fa-scale-balanced mr-2"></i>재무상태표 (B/S)</span>
+                  <span class="text-xs text-slate-500">시점: 당기말</span>
+                </h2>
+                <div class="space-y-4 text-sm">
+                  <div class="flex justify-between"><span>자산총계 (Total Assets)</span><span class="font-extrabold text-blue-400 text-lg">{totals.asset.toLocaleString()} 원</span></div>
+                  <hr class="border-slate-900" />
+                  <div class="flex justify-between"><span>부채총계 (Total Liabilities)</span><span class="font-bold text-rose-400">{totals.liability.toLocaleString()} 원</span></div>
+                  <div class="flex justify-between"><span>자본총계 (Total Equity)</span><span class="font-bold text-slate-300">{totalEquity.toLocaleString()} 원</span></div>
+                  <hr class="border-slate-800" />
+                  <div class="flex justify-between text-xs text-slate-500 italic bg-slate-900/40 p-2 rounded">
+                    <span>부채 및 자본총계 체크밸런스</span>
+                    <span>{(totals.liability + totalEquity).toLocaleString()} 원</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 대형 손익계산서 */}
+              <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 shadow-inner">
+                <h2 className="text-lg font-bold text-emerald-400 mb-4 border-b border-slate-800 pb-2 flex justify-between items-center">
+                  <span><i class="fa-solid fa-chart-line mr-2"></i>손익계산서 (I/S)</span>
+                  <span class="text-xs text-slate-500">기간: 당기 1년간</span>
+                </h2>
+                <div class="space-y-4 text-sm">
+                  <div class="flex justify-between"><span>스페이스 만두 영업수익 (Revenue)</span><span class="font-bold text-emerald-400">{totals.revenue.toLocaleString()} 원</span></div>
+                  <div class="flex justify-between"><span>운영 및 인건비용 (Expenses)</span><span class="font-bold text-amber-500">({totals.expense.toLocaleString()}) 원</span></div>
+                  <hr class="border-slate-800" />
+                  <div class="flex justify-between text-2xl font-black bg-gradient-to-r from-emerald-950/60 to-slate-950 p-3 rounded-xl border border-emerald-500/20 items-center mt-6">
+                    <span class="text-emerald-300 text-base">당기순이익 (Net Income)</span>
+                    <span class="text-emerald-400">{netIncome.toLocaleString()} 원</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* 재미 요소 점수판 */}
+            <div class="bg-gradient-to-b from-slate-950 to-slate-900 p-6 rounded-2xl border border-slate-800 mb-8 max-w-md mx-auto shadow-xl">
+              <span class="text-xs uppercase tracking-widest text-slate-500 block mb-1">스페이스 CEO 역량 등급</span>
+              <div class="text-6xl font-black text-yellow-400 tracking-tighter my-2 drop-shadow-[0_4px_12px_rgba(234,179,8,0.3)]">우주 만두왕 (S+)</div>
+              <p class="text-xs text-slate-400 leading-relaxed">전산세무 2급 레이스를 완벽하게 통과했습니다. 당신의 분개 덕분에 은하계 만두 유통망의 회계 투명성이 완벽히 보장되었습니다!</p>
+            </div>
+
+            <button onClick={() => window.location.reload()} className="px-8 py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 text-white font-bold text-sm rounded-xl hover:opacity-90 shadow-2xl transition-transform hover:scale-105 active:scale-95">
+              처음부터 다시 공장 가동하기
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <div class="w-full flex flex-col h-[700px] fade-in">
+          {/* 상단 팩토리 대시 헤더 */}
+          <header className="mb-6 flex justify-between items-end border-b border-slate-800 pb-4">
+            <div>
+              <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-emerald-400">지킬 수 스페이스 만두 팩토리</h1>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mt-1">Consistency Story Mode | 전산세무 2급 시뮬레이터</p>
+            </div>
+            <div className="text-right bg-slate-900 px-4 py-2 rounded-xl border border-slate-800 shadow-md">
+              <span className="text-xs font-bold text-slate-500 uppercase mr-2">FACTORY PROGRESS</span>
+              <span className="font-bold text-blue-400">{problem.turn} / 5</span>
+            </div>
+          </header>
+
+          {/* 메인 3단 계정 대시보드 */}
+          <div className="flex gap-4 flex-1 h-full min-h-0">
+            
+            {/* 좌측단: 실시간 재무상태표 대시보드 */}
+            <div className="w-64 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col shadow-lg">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-2 mb-4 text-center"><i class="fa-solid fa-scale-balanced mr-2 text-blue-500"></i>재무상태표 (B/S)</h2>
+              <div className="flex-1 flex flex-col gap-4">
+                <div className="flex-1 bg-slate-950 rounded-xl overflow-hidden relative flex items-end border border-slate-800">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-xs font-bold text-slate-300">
+                    <span>공장 총 자산</span>
+                    <span class="text-blue-400 text-sm mt-1 font-extrabold">{totals.asset.toLocaleString()}원</span>
+                  </div>
+                  <div className="water-fill w-full bg-blue-600/15 border-t-2 border-blue-500/80" style={{ height: `${Math.min(totals.asset / 100000 * 100, 100)}%` }}></div>
+                </div>
+                <div className="flex-1 bg-slate-950 rounded-xl overflow-hidden relative flex items-end border border-slate-800">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-xs font-bold text-slate-300">
+                    <span>갚아야 할 부채</span>
+                    <span class="text-rose-400 text-sm mt-1 font-extrabold">{totals.liability.toLocaleString()}원</span>
+                  </div>
+                  <div className="water-fill w-full bg-rose-600/15 border-t-2 border-rose-500/80" style={{ height: `${Math.min(totals.liability / 100000 * 100, 100)}%` }}></div>
+                </div>
+              </div>
+            </div>
+
+            {/* 중앙단: 메인 분개 워크벤치 */}
+            <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-lg relative">
+              <div>
+                <span class="text-xs font-bold text-cyan-400 bg-cyan-950/50 border border-cyan-900/40 px-2.5 py-1 rounded-md uppercase tracking-widest">{problem.title}</span>
+                <h3 className="text-xl font-bold mt-3 text-slate-100 leading-snug">{problem.desc}</h3>
+              </div>
+              
+              <div className="flex gap-4 my-2">
+                {/* 차변 */}
+                <div className="flex-1 h-44 border-2 border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center bg-slate-950/40 relative p-3 transition-colors">
+                  <span className="absolute top-2 left-3 text-xs font-bold text-slate-500 uppercase tracking-wider">차변 (Debit Side)</span>
+                  {debitSlot ? (
+                    <div className="fade-in text-center w-full">
+                      <div className={`${debitSlot.color} text-white font-bold py-2 px-4 rounded-xl shadow-md mx-auto inline-block text-sm mb-1`}>
+                        {debitSlot.name}
+                      </div>
+                      <div class="text-2xl font-black text-slate-100">{debitSlot.amount.toLocaleString()}원</div>
+                      <div className="mt-2 text-[11px] font-bold text-blue-400 bg-blue-950/60 px-2.5 py-1 rounded border border-blue-900/40 inline-block">
+                        {getAccountingRuleText(debitSlot.type, 'debit')}
+                      </div>
+                    </div>
+                  ) : <span class="text-slate-700 text-xs font-medium">계정 블록을 터치하세요</span>}
+                </div>
+
+                {/* 대변 */}
+                <div className="flex-1 h-44 border-2 border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center bg-slate-950/40 relative p-3 transition-colors">
+                  <span className="absolute top-2 right-3 text-xs font-bold text-slate-500 uppercase tracking-wider">대변 (Credit Side)</span>
+                  {creditSlot ? (
+                    <div className="fade-in text-center w-full">
+                      <div className={`${creditSlot.color} text-white font-bold py-2 px-4 rounded-xl shadow-md mx-auto inline-block text-sm mb-1`}>
+                        {creditSlot.name}
+                      </div>
+                      <div class="text-2xl font-black text-slate-100">{creditSlot.amount.toLocaleString()}원</div>
+                      <div className="mt-2 text-[11px] font-bold text-rose-400 bg-rose-950/60 px-2.5 py-1 rounded border border-rose-900/40 inline-block">
+                        {getAccountingRuleText(creditSlot.type, 'credit')}
+                      </div>
+                    </div>
+                  ) : <span class="text-slate-700 text-xs font-medium">계정 블록을 터치하세요</span>}
+                </div>
+              </div>
+
+              {/* 하단 제어부 인터랙션 */}
+              {!isSubmitted ? (
+                <div className="flex flex-col items-center">
+                  <div className="flex gap-2 flex-wrap justify-center mb-5">
+                    {problem.blocks.map((block) => (
+                      <button key={block.id} onClick={() => handleBlockClick(block)} disabled={debitSlot?.id === block.id || creditSlot?.id === block.id} className={`${block.color} text-white text-xs font-bold py-2 px-4 rounded-xl shadow-md hover:brightness-110 active:scale-95 disabled:opacity-20 transition-all`}>
+                        {block.name}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-4">
+                    <button onClick={handleClear} className="px-5 py-2 bg-slate-800 text-slate-400 font-bold text-xs rounded-xl hover:bg-slate-700 transition-colors">정렬 초기화</button>
+                    <button onClick={handleSubmit} disabled={!debitSlot || !creditSlot} className={`px-8 py-2 font-bold text-xs rounded-xl text-white transition-all ${(!debitSlot || !creditSlot) ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:opacity-90 shadow-lg'}`}>
+                      승인 요청 및 분개 검증
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="fade-in bg-emerald-950/30 border border-emerald-900/40 p-4 rounded-xl text-center flex flex-col items-center justify-center h-28 shadow-inner">
+                  <p className="text-emerald-400 font-extrabold text-sm mb-1"><i class="fa-solid fa-circle-check mr-2"></i>회계 처리 완료 (정답)</p>
+                  <p className="text-slate-400 text-xs mb-3">{problem.explanation}</p>
+                  <button onClick={handleNextTurn} className="px-6 py-1.5 bg-emerald-600 text-white font-bold text-xs rounded-lg hover:bg-emerald-500 shadow-md transition-all active:scale-95">
+                    {currentTurn < problems.length - 1 ? '다음 생산 단계 분개 실행 ➔' : '최종 경영결산 주주총회 열기 ➔'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 우측단: 실시간 손익계산서 대시보드 */}
+            <div className="w-64 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col shadow-lg">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-2 mb-4 text-center"><i class="fa-solid fa-chart-line mr-2 text-emerald-500"></i>손익계산서 (I/S)</h2>
+              <div className="flex-1 flex flex-col gap-4">
+                <div className="flex-1 bg-slate-950 rounded-xl overflow-hidden relative flex items-end border border-slate-800">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-xs font-bold text-slate-300">
+                    <span>누적 영업 수익</span>
+                    <span class="text-emerald-400 text-sm mt-1 font-extrabold">{totals.revenue.toLocaleString()}원</span>
+                  </div>
+                  <div className="water-fill w-full bg-emerald-600/15 border-t-2 border-emerald-500/80" style={{ height: `${Math.min(totals.revenue / 30000 * 100, 100)}%` }}></div>
+                </div>
+                <div className="flex-1 bg-slate-950 rounded-xl overflow-hidden relative flex items-end border border-slate-800">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-xs font-bold text-slate-300">
+                    <span>누적 영업 비용</span>
+                    <span class="text-amber-500 text-sm mt-1 font-extrabold">{totals.expense.toLocaleString()}원</span>
+                  </div>
+                  <div className="water-fill w-full bg-amber-600/15 border-t-2 border-amber-500/80" style={{ height: `${Math.min(totals.expense / 30000 * 100, 100)}%` }}></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<AccountingGame />);
+  </script>
+</body>
+</html>
